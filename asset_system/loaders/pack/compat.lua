@@ -5,6 +5,7 @@ local vfs = require("compat.game192.virtual_filesystem")
 local shader_compat = require("compat.game21.shader_compat")
 local utils = require("asset_system.loaders.utils")
 local platform = require("platform")
+require("love.graphics")
 
 local compat_loaders = {}
 
