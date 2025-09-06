@@ -158,20 +158,5 @@ else
         end
     end
 
-    function threadify.stop()
-        for require_string, thread_table in pairs(threads) do
-            local thread = thread_table.thread
-            if thread:isRunning() then
-                -- effectively kills the thread (sending stop doesn't work sometimes and when it does it would still cause unresponsiveness on closing)
-                thread:release()
-            else
-                local err = thread:getError()
-                if err then
-                    log("Error in '" .. require_string .. "' thread: " .. err)
-                end
-            end
-        end
-    end
-
     return threadify
 end

@@ -221,7 +221,6 @@ function love.run()
         for name, a, b, c, d, e, f in love.event.poll() do
             if name == "quit" then
                 config.save()
-                threadify.stop()
                 return a or 0
             elseif name == "threaderror" then
                 config.save()

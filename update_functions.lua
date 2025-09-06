@@ -1,6 +1,6 @@
 local module_map = {
     threadify = "update",
-    ["asset_system.mirror_client"] = "update"
+    ["asset_system.mirror_client"] = "update",
 }
 
 return function()
@@ -17,7 +17,7 @@ return function()
                         fns[index] = module[fun_name]
                         fns[index]()
                     end
-                end
+                end,
             })
         end
     end
