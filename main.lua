@@ -115,7 +115,7 @@ function love.run()
         local server_thread = love.thread.newThread("server/init.lua")
         server_thread:start("server", true, args.web)
         global_config.init()
-        async.busy_await(game_handler.init(), true)
+        async.busy_await(game_handler.init())
         local Replay = require("game_handler.replay")
         return function()
             local replay_file = love.thread.getChannel("replays_to_render"):demand(10)
@@ -139,7 +139,7 @@ function love.run()
                 local replay = Replay:new(replay_file)
                 local out_file_path = love.filesystem.getSaveDirectory() .. "/" .. replay_file .. ".part.mp4"
                 log("Got new #1 on '" .. replay.level_id .. "' from '" .. replay.pack_id .. "', rendering...")
-                local fn = async.busy_await(render_replay(game_handler, replay, out_file_path, replay.score), true)
+                local fn = async.busy_await(render_replay(game_handler, replay, out_file_path, replay.score))
                 local aborted = false
                 while fn() ~= 0 do
                     local abort_hash = love.thread.getChannel("abort_replay_render"):pop()
@@ -166,8 +166,8 @@ function love.run()
             error("Started headless mode without replay")
         end
         global_config.init()
-        async.busy_await(game_handler.init(), true)
-        async.busy_await(game_handler.replay_start(args.replay_file), true)
+        async.busy_await(game_handler.init())
+        async.busy_await(game_handler.replay_start(args.replay_file))
         game_handler.run_until_death()
         log("Score: " .. game_handler.get_score())
         return function()
@@ -180,8 +180,8 @@ function love.run()
             error("trying to render replay without replay")
         end
         global_config.init()
-        async.busy_await(game_handler.init(), true)
-        return async.busy_await(render_replay(game_handler, args.replay_file, "output.mp4"), true)
+        async.busy_await(game_handler.init())
+        return async.busy_await(render_replay(game_handler, args.replay_file, "output.mp4"))
     end
 
     local ui = require("ui")
@@ -196,7 +196,7 @@ function love.run()
 
     game_handler.init():done(function()
         if args.replay_file then
-            async.busy_await(game_handler.replay_start(args.replay_file), true)
+            async.busy_await(game_handler.replay_start(args.replay_file))
             ui.open_screen("game")
         else
             ui.open_screen("levelselect")

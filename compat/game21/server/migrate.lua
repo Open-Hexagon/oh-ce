@@ -6,7 +6,7 @@ local game_handler = require("game_handler")
 local config = require("config")
 local async = require("async")
 
-async.busy_await(game_handler.init(config), true)
+async.busy_await(game_handler.init(config))
 local packs = game_handler.get_packs()
 local level_validator_to_id = {}
 for j = 1, #packs do

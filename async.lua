@@ -108,11 +108,16 @@ function async.await(prom)
     return coroutine.yield()
 end
 
-function async.busy_await(prom, is_main, in_coroutine_loop)
+function async.busy_await(prom, in_coroutine_loop)
     -- this function is the only implementation specific one (assumes love and the asset system are used)
     local assets
+    local is_main = arg ~= nil
     if is_main then
-        assets = require("asset_system")
+        -- pcall, since we may be in require loop
+        local success, ret = pcall(require, "asset_system")
+        if success then
+            assets = ret
+        end
     end
     local update_fun = require("update_functions")()
     while not prom.executed do
@@ -124,6 +129,8 @@ function async.busy_await(prom, is_main, in_coroutine_loop)
                     error("Error in thread: " .. b)
                 end
             end
+        end
+        if assets then
             assets.run_main_thread_task()
         end
         update_fun()
