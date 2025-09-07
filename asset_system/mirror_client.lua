@@ -12,13 +12,17 @@ local update_ack_channel = love.thread.getChannel("asset_index_update_acks")
 -- thanks to require caching modules this will only be called once per thread
 -- in case the mirror was created after some assets are already
 -- loaded the promise results in the initial mirror state
+---@type table<MirrorKey, unknown>
 client.mirror = async.busy_await(index.register_mirror())
 
 local last_id
+---@alias MirrorCallback fun(value: unknown)
+---@type table<MirrorKey|table, MirrorCallback>
 local asset_callbacks = {}
 
 ---updates the contents of the mirror using the asset notifications
 function client.update()
+    ---@type MirrorNotification?
     local notification = update_channel:peek()
     if notification then
         local id = notification[1]
@@ -47,8 +51,8 @@ function client.update()
 end
 
 ---listen to asset changes, to unregister listener set callback to nil
----@param key string|table
----@param callback function?
+---@param key MirrorKey|table
+---@param callback MirrorCallback?
 function client.listen(key, callback)
     asset_callbacks[key] = callback
 end

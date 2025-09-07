@@ -1,12 +1,14 @@
 local log = require("log")(...)
 local uv = require("luv")
 
+---@type table<string, uv.uv_fs_event_t?>
 local event_handles = {}
+---@type table<string, boolean>
 local stopped = {}
 local save_dir = love.filesystem.getSaveDirectory()
 
 ---watch files (called on loop), calls yields path on file changes
----@param file_list table
+---@param file_list string[]
 return function(file_list)
     for i = 1, #file_list do
         local path = file_list[i]

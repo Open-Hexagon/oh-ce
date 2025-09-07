@@ -16,7 +16,9 @@ local watcher = {}
 
 local watching = false
 local path_filter = nil
+---@type string[]
 local filtered_list = {}
+---@type string[]
 local file_list = {}
 
 ---start watching files while optionally filtering for the beginning of the path
@@ -39,6 +41,7 @@ function watcher.start(filter)
         filtered_list = file_list
     end
     watching = true
+    ---@type string[]
     local paths = {}
     while watching do
         local co = coroutine.wrap(impl)
@@ -55,7 +58,6 @@ function watcher.start(filter)
         coroutine.yield()
     end
 end
-watcher.start_co = true
 
 ---stop watching
 function watcher.stop()

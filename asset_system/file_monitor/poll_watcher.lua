@@ -1,10 +1,12 @@
 require("love.timer")
 
+---@alias CustomInfo { type: love.FileType, size: number?, modtime: number?, files: string[]? }
+
 ---get info with directory items or "deleted" if it doesn't exist
 ---@param path string
----@return table|string
+---@return CustomInfo|string
 local function get_custom_info(path)
-    local info = love.filesystem.getInfo(path)
+    local info = love.filesystem.getInfo(path) --[[@as CustomInfo?]]
     if info and info.type == "directory" then
         info.files = love.filesystem.getDirectoryItems(path)
     end
@@ -12,8 +14,8 @@ local function get_custom_info(path)
 end
 
 ---compare 2 of the infos
----@param new table|string
----@param old table|string
+---@param new CustomInfo|string
+---@param old CustomInfo|string
 ---@return boolean
 local function has_changed(new, old)
     if type(new) ~= type(old) then
@@ -36,6 +38,7 @@ local function has_changed(new, old)
     return false
 end
 
+---@type table<string, CustomInfo|string>
 local last_infos = {}
 
 ---watch files (called on loop), calls index.changed on file changes

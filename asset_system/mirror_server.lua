@@ -7,8 +7,9 @@ local mirror_server = {}
 local mirror_count = 0
 
 ---register a mirror (to wait for when sending notifications) returns currently loaded assets
----@param mirrored_assets table
----@return table
+---@param mirrored_assets table<MirrorKey, Asset>
+---@return table<MirrorKey, unknown>
+---@nodiscard
 function mirror_server.register_mirror(mirrored_assets)
     mirror_count = mirror_count + 1
     local new_mirror = {}
@@ -31,6 +32,7 @@ local update_channel = love.thread.getChannel("asset_index_updates")
 local update_ack_channel = love.thread.getChannel("asset_index_update_acks")
 
 -- keep track of assets which need to have notifications sent once loading stack is empty
+---@type table<Asset, boolean>
 local pending_assets = {}
 local notification_id_offset = 0
 
@@ -39,7 +41,10 @@ function mirror_server.schedule_sync(asset)
     pending_assets[asset] = true
 end
 
+---@alias MirrorNotification [integer, MirrorKey, unknown]
+
 local function send_notification(id, asset)
+    ---@type MirrorNotification
     local notification = { id, asset.key, asset.value }
     -- send a table diff instead of whole table when last mirrored value is a table
     local send_diff = type(asset.last_mirrored_value) == "table" and type(asset.value) == "table"
@@ -56,6 +61,7 @@ local function send_notification(id, asset)
     end
 end
 
+---syncs all pending assets to all registered mirror clients
 function mirror_server.sync_pending_assets()
     local notification_count = 0
     for asset in pairs(pending_assets) do

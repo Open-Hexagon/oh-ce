@@ -103,6 +103,5 @@ function download.get(version, pack_name)
     end
     log("Done")
 end
-download.get_co = true
 
 return download

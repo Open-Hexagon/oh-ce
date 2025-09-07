@@ -2,11 +2,29 @@ local log = require("log")(...)
 local json = require("extlibs.json.json")
 local mirror_server = require("asset_system.mirror_server")
 require("love.timer")
+
 local index = {}
 
+---@alias AssetId string internal asset id
+---@alias MirrorKey string key used in mirrors
+---@alias LoaderFunction fun(...: unknown): unknown
+---@alias ResourceId string id for any type of non-asset resource a loader could depend on (e.g. a file)
+---@alias Asset {
+---  loader_function: LoaderFunction,
+---  arguments: unknown[],
+---  depended_on_by: table<AssetId, boolean>,
+---  dependencies: AssetId[],
+---  resources: table<ResourceId, boolean>,
+---  id: AssetId,
+---  key: MirrorKey?,
+---  value: unknown?,
+---}
+
 -- this is the real global index
-local assets = {} -- using internal ids
-local mirrored_assets = {} -- using given asset keys
+---@type table<AssetId, Asset>
+local assets = {}
+---@type table<MirrorKey, Asset>
+local mirrored_assets = {}
 
 -- expose mirror register functions (see mirror_server.lua for function descriptions)
 function index.register_mirror()
@@ -17,12 +35,10 @@ function index.unregister_mirror()
     mirror_server.unregister_mirror()
 end
 
--- used to get asset ids from resource id, as well as a resource's remove function
-local resource_watch_map = {}
-
 -- allow unused assets to be retained for a certain amount of requests/reloads
 -- this prevents them from unloading just before the next reload uses them again
 local RETAIN_UNUSED_ASSETS = 2
+---@type table<Asset, integer>
 local unused_assets = {}
 
 ---goes through unused assets and unloads them if they have not been used too many times
@@ -41,11 +57,16 @@ local function process_unused_assets()
     end
 end
 
+-- used to get asset ids from resource id, as well as a resource's remove function
+---@type table<ResourceId, { [1]: fun(resource: ResourceId)?, [AssetId]: boolean }>
+local resource_watch_map = {}
+
 -- used to check which asset is causing the loading of another asset to infer dependencies
+---@type Asset[]
 local loading_stack = {}
 local loading_stack_index = 0
 
--- for printing statistics
+--#region printing statistics
 local load_call_count = 0
 local start_time
 
@@ -66,9 +87,10 @@ local function print_stats(start_text)
         )
     end
 end
+--#endregion
 
 ---puts an asset on the stack and calls its loader or unloads it
----@param asset table
+---@param asset Asset
 ---@param clear boolean?
 local function load_asset(asset, clear)
     -- push asset id to loading stack
@@ -127,7 +149,8 @@ end
 
 ---get loader function based on loader string
 ---@param loader string
----@return function
+---@return LoaderFunction
+---@nodiscard
 local function get_loader_function(loader)
     local modname = loader:match("(.*)%.")
     local module = modname and require("asset_system.loaders." .. modname) or require("asset_system.loaders")
@@ -142,7 +165,8 @@ end
 ---generates a unique asset id based on the loader and the parameters
 ---@param loader string
 ---@param ... unknown
----@return string
+---@return AssetId
+---@nodiscard
 local function generate_asset_id(loader, ...)
     local args = { ... }
     local info = debug.getinfo(get_loader_function(loader))
@@ -155,7 +179,7 @@ end
 
 ---request an asset to be loaded and mirrored into the index
 ---(mirroring only happens for this asset if a key is given)
----@param key string?
+---@param key MirrorKey?
 ---@param loader string
 ---@param ... unknown
 function index.request(key, loader, ...)
@@ -215,13 +239,14 @@ end
 ---@param loader string
 ---@param ... unknown
 ---@return unknown
+---@nodiscard
 function index.local_request(loader, ...)
     index.request(nil, loader, ...)
     return assets[generate_asset_id(loader, ...)].value
 end
 
 ---unload an asset
----@param id_or_key string
+---@param id_or_key AssetId|MirrorKey
 function index.unload(id_or_key)
     local asset = mirrored_assets[id_or_key] or assets[id_or_key]
     if next(asset.depended_on_by) ~= nil then
@@ -248,8 +273,9 @@ end
 
 ---traverses the asset dependency tree without duplicates
 ---returns a sequence of asset ids in the correct order
----@param asset_ids table
----@return table
+---@param asset_ids table<AssetId, boolean>
+---@return AssetId[]
+---@nodiscard
 local function reload_traverse(asset_ids)
     local plan = {}
     repeat
@@ -273,14 +299,14 @@ local function reload_traverse(asset_ids)
 end
 
 ---reloads an asset, using either its id or key
----@param id_or_key string
+---@param id_or_key AssetId|MirrorKey
 function index.reload(id_or_key)
     reset_stats()
     local asset = mirrored_assets[id_or_key] or assets[id_or_key]
     load_asset(asset)
 
-    -- reload assets that depend on this one
-    local plan = reload_traverse(asset.depended_on_by)
+    -- reload asset and ones that depend on it
+    local plan = reload_traverse({ [asset] = true })
     for i = 1, #plan do
         load_asset(assets[plan[i]])
     end
@@ -290,14 +316,14 @@ function index.reload(id_or_key)
     print_stats("Reloaded '" .. id_or_key .. "'")
 end
 
+--#region resource handling
+
 ---watch any external resource, the id has to be unique
----@param resource_id string
----@param watch_add function?
----@param watch_del function?
+---@param resource_id ResourceId
+---@param watch_add fun(resource: ResourceId)?
+---@param watch_del fun(resource: ResourceId)?
 function index.watch(resource_id, watch_add, watch_del)
-    if loading_stack_index <= 0 then
-        error("cannot register resource watcher outside of asset loader")
-    end
+    assert(loading_stack_index > 0, "cannot register resource watcher outside of asset loader")
     local asset = loading_stack[loading_stack_index]
     assets[asset.id].resources[resource_id] = true
     if resource_watch_map[resource_id] then
@@ -312,7 +338,7 @@ function index.watch(resource_id, watch_add, watch_del)
 end
 
 ---notify asset index of changes in an external resource
----@param ... unknown
+---@param ... ResourceId
 function index.changed(...)
     reset_stats()
     -- get assets that depend on the resources
@@ -344,5 +370,7 @@ local watcher = threadify.require("asset_system.file_monitor", true)
 function index.watch_file(path)
     index.watch(path, watcher.add, watcher.remove)
 end
+
+--#endregion
 
 return index

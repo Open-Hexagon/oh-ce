@@ -66,6 +66,10 @@ else
     local threadify = {}
     local threads_channel = love.thread.getChannel("threads")
 
+    ---run a module in a different thread but allow calling its functions from here
+    ---@param require_string string
+    ---@param no_responses boolean?
+    ---@return table<string, fun(...): promise>
     function threadify.require(require_string, no_responses)
         if not threads[require_string] then
             local thread_table = {
@@ -123,6 +127,7 @@ else
         })
     end
 
+    ---update threaded modules
     function threadify.update()
         for i = 1, #thread_names do
             local require_string = thread_names[i]
