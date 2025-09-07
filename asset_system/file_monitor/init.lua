@@ -22,6 +22,10 @@ local file_list = {}
 ---start watching files while optionally filtering for the beginning of the path
 ---@param filter string?
 function watcher.start(filter)
+    log("Start.")
+    if filter then
+        log("Filter:", filter)
+    end
     path_filter = filter
     if filter then
         filtered_list = {}
@@ -55,6 +59,7 @@ watcher.start_co = true
 
 ---stop watching
 function watcher.stop()
+    log("Stop.")
     watching = false
 end
 
