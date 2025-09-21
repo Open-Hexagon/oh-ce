@@ -64,7 +64,12 @@ local current_colors
 local current_3D_override_color
 local color_index_offset
 
-function style.set(style_json)
+function style.set(style_json, no_listen)
+    -- the no_listen parameter is required because this module may be used during asset loading
+    -- requiring the mirror_client would cause problems in that case
+    if not no_listen then
+        require("asset_system.mirror_client").assign_asset_to_listener(style.set, style_json)
+    end
     style_json = style_json or {}
     style.current_swap_time = 0
     style.pulse_factor = 0
