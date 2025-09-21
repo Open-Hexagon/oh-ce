@@ -35,9 +35,13 @@ local main_quads
 local must_change_sides = false
 local last_move, move = 0, 0
 local depth = 0
-local layer_shader, message_font
+local layer_shader
 local instance_offsets = {}
 local instance_colors = {}
+
+local function set_3D_depth(style_data)
+    depth = math.min(style_data["3D_depth"] or 15, config.get("3D_max_depth"))
+end
 
 ---starts a new game
 ---@param pack_id string
@@ -56,7 +60,8 @@ public.start = async(function(pack_id, level_id, level_options)
     game.pack = assets.mirror[key]
     level.set(game.pack.levels[level_id])
     level_status.reset()
-    style.set(game.pack.styles[level.style_id])
+    local style_data = game.pack.styles[level.style_id]
+    style.set(style_data)
     music.stop()
     local pitch = config.get("sync_music_to_dm") and math.pow(game.difficulty_mult, 0.12) or 1
     music.play(game.pack.music[level.music_id], not public.first_play, nil, pitch)
@@ -100,7 +105,8 @@ public.start = async(function(pack_id, level_id, level_options)
     game.set_sides(level_status.sides)
     game.current_rotation = 0
     style._3D_depth = math.min(style._3D_depth, config.get("3D_max_depth"))
-    depth = style._3D_depth
+    set_3D_depth(style_data)
+    assets.mirror_client.assign_asset_to_listener(set_3D_depth, style_data)
     public.running = true
 end)
 
