@@ -1,9 +1,10 @@
+require("love.thread")
 if arg == nil then
-    -- called from thread (running in server)
-    return {
-        server = true,
-        headless = true,
-    }
+    -- called from thread
+    local args = love.thread.getChannel("command_line_arguments"):peek()
+    assert(args, "args.lua has to be included in main thread before usage in other threads")
+    args.headless = true -- threads are always headless, this is a limitation of sdl which love is based on
+    return args
 end
 local argparse = require("extlibs.argparse")
 
@@ -32,4 +33,5 @@ local ret = parser:parse(love.arg.parseGameArguments(arg))
 if (ret.server and not ret.render) or ret.migrate then
     ret.headless = true
 end
+love.thread.getChannel("command_line_arguments"):push(ret)
 return ret
