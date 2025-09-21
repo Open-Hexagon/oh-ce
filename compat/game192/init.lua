@@ -123,6 +123,13 @@ function game.get_main_color(black_and_white)
     return r, g, b, a
 end
 
+local function set_3D_depth(style_data)
+    depth = math.floor(style_data["3D_depth"] or 15)
+    if depth > 100 then
+        depth = 100
+    end
+end
+
 public.start = async(function(pack_folder, level_id, level_options)
     public.tickrate = 960
     level_options.difficulty_mult = level_options.difficulty_mult or 1
@@ -199,10 +206,8 @@ public.start = async(function(pack_folder, level_id, level_options)
         game.level_data.rotation_speed = -game.level_data.rotation_speed
     end
     current_rotation = 0
-    depth = math.floor(style.get_value("3D_depth"))
-    if depth > 100 then
-        depth = 100
-    end
+    set_3D_depth(style_data)
+    assets.mirror_client.assign_asset_to_listener(set_3D_depth, style_data)
     shake_move[1], shake_move[2] = 0, 0
     public.running = true
 end)
