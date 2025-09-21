@@ -67,7 +67,12 @@ if not args.headless then
     _background_tris = Tris:new()
 end
 
-function style.select(style_data)
+function style.select(style_data, no_listen)
+    -- the no_listen parameter is required because this module may be used during asset loading
+    -- requiring the mirror_client would cause problems in that case
+    if not no_listen then
+        require("asset_system.mirror_client").assign_asset_to_listener(style.select, style_data)
+    end
     style_data = style_data or {}
     _current_hue = style_data.hue_min or 0
     _current_swap_time = 0
