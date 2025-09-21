@@ -169,7 +169,37 @@ print(mytable.number) -- 20
 
 ### Listening to table content changes
 
-While listening to asset reloads generally is possible as shown previously. Sometimes you may want to listen to just sub table changes. This can be achieved by passing the sub table reference to `assets.mirror_client.listen` instead of the mirror key. (Note that the same api still applies: Only one callback is allowed per asset/sub table and it can be set to nil to remove it)
+While listening to asset reloads generally is possible as shown previously. Sometimes you may want to listen to just sub table changes. This can be achieved by passing the sub table reference to `assets.mirror_client.listen` instead of the mirror key.
+
+### Listen function variations
+
+It is possible to listen to just one change using `assets.mirror_client.listen_once`. If you want to disable a listener you can call `assets.mirror_client.disable_listener` on the function.
+
+Possibly the most common case is to have a function that uses a certain asset when called, but uses a different one when called again. In this case we want said function to be called just on changes of the asset it is currently using. This can be achived using `assets.mirror_client.assign_asset_to_listener`.
+
+```lua
+local assets = require("asset_system")
+local async = require("async")
+...
+local some_internal_state
+
+local function set_some_values_from_asset(asset_value)
+    some_internal_state = some_processing(asset_value)
+end
+assets.mirror_client.assign_asset_to_listener(set_some_values_from_asset, "some_key")
+async.await(assets.index.request("some_key", "some_loader"))
+async.await(assets.index.request("some_other_key", "some_other_loader"))
+
+-- will only call the callback for some_key
+async.await(assets.index.reload("some_key"))
+async.await(assets.index.reload("some_other_key"))
+
+assets.mirror_client.assign_asset_to_listener(set_some_values_from_asset, "some_other_key")
+
+-- will only call the callback for some_other_key now
+async.await(assets.index.reload("some_key"))
+async.await(assets.index.reload("some_other_key"))
+```
 
 ## Unloading
 An asset can be unloaded using the `index.unload` function that takes either its internal id or mirror key. This will also mirror the asset to be nil again in all threads if the asset is mirrored.
