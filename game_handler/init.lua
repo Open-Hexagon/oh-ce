@@ -42,6 +42,19 @@ game_handler.init = async(function()
     assets.mirror_client.listen("pack_level_data", function(packs)
         pack_level_data.clear()
         pack_level_data.import_packs(packs)
+        if config.get("preload_all_packs") and not args.replay_viewer then
+            for i = 1, #packs do
+                local pack = packs[i]
+                local key = ("%d_%s"):format(pack.game_version, pack.id)
+                assets.index.request(key, "pack.compat.full_load", pack.game_version, pack.id)
+                assets.index.request(
+                    "preview_data_" .. key,
+                    "pack.compat.preview_data",
+                    pack.game_version,
+                    pack.folder_name
+                )
+            end
+        end
     end)
     async.await(assets.index.request("pack_level_data", "pack.load_register"))
     for _, game in pairs(games) do
