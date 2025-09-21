@@ -121,6 +121,23 @@ local function file_iter(dir, ending, loader, info)
     end)
 end
 
+local function set_event_defaults(events)
+    for i = 1, #events do
+        local event = events[i]
+        if type(event) == "userdata" then
+            -- null in end of list (parsing error)
+            events[i] = nil
+            break
+        end
+        event.type = event.type or ""
+        event.duration = event.duration or 0
+        event.value_name = event.value_name or ""
+        event.value = event.value or 0
+        event.message = event.message or ""
+        event.id = event.id or ""
+    end
+end
+
 function compat_loaders.level_data(path_or_content, is_content)
     local level_json = index.local_request("pack.compat.json_file", path_or_content, is_content)
     -- make keys have the same name for all versions
@@ -151,6 +168,9 @@ function compat_loaders.level_data(path_or_content, is_content)
     level_json.sound_id = level_json.sound_id or "nullSoundId"
     level_json.style_id = level_json.style_id or "nullStyleId"
     level_json.lua_file = level_json.lua_file or "nullLuaPath"
+    if level_json.events ~= nil then
+        set_event_defaults(level_json.events)
+    end
     level_json.difficulty_mults = level_json.difficulty_mults or {}
     -- add 1x difficulty mult if it doesn't exist
     local has1 = false
@@ -303,15 +323,19 @@ function compat_loaders.shader(path_or_content, is_content, filename)
         compiled_shader = shader_compat.compile(translated_shader.new_code, code, filename)
     else
         compiled_shader = utils.run_on_main(
-            [[
-            local shader_compat = require("compat.game21.shader_compat")
-            local shader = ...
-            return shader_compat.compile(shader.new_code, shader.code, shader.filename)
-        ]],
-            translated_shader
+            'return require("compat.game21.shader_compat").compile(...)',
+            translated_shader.new_code,
+            translated_shader.code,
+            translated_shader.filename
         )
     end
     return compiled_shader
+end
+
+function compat_loaders.event_list(path_or_content, is_content, filename)
+    local value = index.local_request("pack.compat.json_file", path_or_content, is_content, filename)
+    set_event_defaults(value.events)
+    return value
 end
 
 function compat_loaders.preview_data(version, name)
@@ -454,7 +478,7 @@ function compat_loaders.full_load(version, id)
             "pack.compat.load_file_list",
             "Events",
             ".json",
-            "pack.compat.json_file",
+            "pack.compat.event_list",
             "id",
             version,
             name,
