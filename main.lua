@@ -141,6 +141,7 @@ function love.run()
                     return 0
                 end
             end
+            assets.mirror_client.update()
 
             -- no replay, continue
             if not replay_file then
