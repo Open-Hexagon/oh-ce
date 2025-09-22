@@ -6,7 +6,9 @@ local shader_compat = require("compat.game21.shader_compat")
 local utils = require("asset_system.loaders.utils")
 local platform = require("platform")
 local args = require("args")
-require("love.graphics")
+if not args.headless then
+    require("love.graphics")
+end
 
 local compat_loaders = {}
 

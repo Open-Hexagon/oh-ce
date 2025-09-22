@@ -66,14 +66,16 @@ end)() ~= "test" then
     end
 end
 
-love.thread
-    .newThread([[
+if not require("args").headless then
+    love.thread
+        .newThread([[
     require("love.graphics")
     local code = "vec4 effect(vec4,Image,vec2,vec2){return vec4(1.0);}"
     local success = pcall(love.graphics.newShader, code)
     love.thread.getChannel("_shader_test_result"):push(success)
 ]])
-    :start()
-features.supports_threaded_shader_compilation = love.thread.getChannel("_shader_test_result"):demand()
+        :start()
+    features.supports_threaded_shader_compilation = love.thread.getChannel("_shader_test_result"):demand()
+end
 
 return features
