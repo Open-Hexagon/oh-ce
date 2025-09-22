@@ -823,62 +823,66 @@ function HTTP:close_and_remove_client(co)
 end
 
 function HTTP:run()
-    local coroutines = {}
     while true do
-        for _, server in ipairs(self.servers) do
-            if self.block then
-                -- blocking is easiest with single-server-socket impls
-                -- tho it had problems on android luasocket iirc
-                -- and now that i'm switching to ssl as well, ... gonna have problems
-                self:log(1, "waiting for client...")
-                local client = assert(server:accept())
-                assert(client:settimeout(3600, "b"))
+        self:run_once()
+    end
+end
+
+function HTTP:run_once()
+    self.coroutines = self.coroutines or {}
+    for _, server in ipairs(self.servers) do
+        if self.block then
+            -- blocking is easiest with single-server-socket impls
+            -- tho it had problems on android luasocket iirc
+            -- and now that i'm switching to ssl as well, ... gonna have problems
+            self:log(1, "waiting for client...")
+            local client = assert(server:accept())
+            assert(client:settimeout(3600, "b"))
+            local new_coroutine = coroutine.create(self.connectCoroutine)
+            self.couroutine_client_map[new_coroutine] = client
+            local index = #self.coroutines + 1
+            self.coroutines[index] = new_coroutine
+            local success, err = coroutine.resume(new_coroutine, self, client, server)
+            if not success then
+                self:log(0, "Error in coroutine:", err .. "\n" .. debug.traceback(new_coroutine))
+                self:close_and_remove_client(new_coroutine)
+            end
+        else
+            local client = server:accept()
+            if client then
+                -- [[ should the client be non-blocking as well?  or can we assert the client will respond in time?
+                assert(client:setoption("keepalive", true))
+                assert(client:settimeout(0, "b"))
+                assert(client:settimeout(0, "t"))
+                --]]
                 local new_coroutine = coroutine.create(self.connectCoroutine)
                 self.couroutine_client_map[new_coroutine] = client
-                local index = #coroutines + 1
-                coroutines[index] = new_coroutine
+                local index = #self.coroutines + 1
+                self.coroutines[index] = new_coroutine
                 local success, err = coroutine.resume(new_coroutine, self, client, server)
                 if not success then
                     self:log(0, "Error in coroutine:", err .. "\n" .. debug.traceback(new_coroutine))
                     self:close_and_remove_client(new_coroutine)
                 end
-            else
-                local client = server:accept()
-                if client then
-                    -- [[ should the client be non-blocking as well?  or can we assert the client will respond in time?
-                    assert(client:setoption("keepalive", true))
-                    assert(client:settimeout(0, "b"))
-                    assert(client:settimeout(0, "t"))
-                    --]]
-                    local new_coroutine = coroutine.create(self.connectCoroutine)
-                    self.couroutine_client_map[new_coroutine] = client
-                    local index = #coroutines + 1
-                    coroutines[index] = new_coroutine
-                    local success, err = coroutine.resume(new_coroutine, self, client, server)
-                    if not success then
-                        self:log(0, "Error in coroutine:", err .. "\n" .. debug.traceback(new_coroutine))
-                        self:close_and_remove_client(new_coroutine)
-                    end
-                end
             end
         end
-        for i = #coroutines, 1, -1 do
-            if coroutine.status(coroutines[i]) == "dead" then
-                self.couroutine_client_map[coroutines[i]] = nil
-                table.remove(coroutines, i)
-            else
-                local success, err = coroutine.resume(coroutines[i])
-                if not success then
-                    self:log(0, "Error in coroutine:", err .. "\n" .. debug.traceback(coroutines[i]))
-                    self:close_and_remove_client(coroutines[i])
-                end
+    end
+    for i = #self.coroutines, 1, -1 do
+        if coroutine.status(self.coroutines[i]) == "dead" then
+            self.couroutine_client_map[self.coroutines[i]] = nil
+            table.remove(self.coroutines, i)
+        else
+            local success, err = coroutine.resume(self.coroutines[i])
+            if not success then
+                self:log(0, "Error in coroutine:", err .. "\n" .. debug.traceback(self.coroutines[i]))
+                self:close_and_remove_client(self.coroutines[i])
             end
         end
-        if #self.clients == 0 then
-            love.timer.sleep(0.1)
-        elseif self.working == 0 then
-            love.timer.sleep(0.01)
-        end
+    end
+    if #self.clients == 0 then
+        love.timer.sleep(0.1)
+    elseif self.working == 0 then
+        love.timer.sleep(0.01)
     end
 end
 
