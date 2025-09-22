@@ -170,7 +170,7 @@ app.handlers["/get_pack/.../..."] = function(captures, headers, req_headers)
 end
 
 log("Compressing all packs")
-for i = 1, #packs do
+--[[for i = 1, #packs do
     local pack = packs[i]
     local pack_path = string.format("packs%s/%s", pack.game_version, pack.folder_name)
     local folder_info = love.filesystem.getInfo(pack_path)
@@ -184,7 +184,7 @@ for i = 1, #packs do
         info = love.filesystem.getInfo(filename)
     end
     packs[i].file_size = info.size
-end
+end]]
 log("Done compressing all packs")
 
 while true do

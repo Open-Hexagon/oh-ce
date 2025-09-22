@@ -33,5 +33,6 @@ local ret = parser:parse(love.arg.parseGameArguments(arg))
 if (ret.server and not ret.render) or ret.migrate then
     ret.headless = true
 end
+ret.is_main_headless = ret.headless
 love.thread.getChannel("command_line_arguments"):push(ret)
 return ret

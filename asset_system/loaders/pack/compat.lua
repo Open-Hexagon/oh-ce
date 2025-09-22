@@ -6,7 +6,7 @@ local shader_compat = require("compat.game21.shader_compat")
 local utils = require("asset_system.loaders.utils")
 local platform = require("platform")
 local args = require("args")
-if not args.headless then
+if not args.is_main_headless then
     require("love.graphics")
 end
 
@@ -288,7 +288,7 @@ end
 function compat_loaders.music(path_or_content, is_content, filename, version, pack_folder_name)
     local pack_info = index.local_request("pack.compat.info", pack_folder_name, version)
     local music = index.local_request("pack.compat.json_file", path_or_content, is_content, filename)
-    if not args.headless then
+    if not args.is_main_headless then
         local fallback_path = filename:gsub("%.json$", ".ogg")
         music.file_name = music.file_name or fallback_path
         local path = pack_info.path .. "Music/" .. music.file_name
@@ -450,7 +450,7 @@ function compat_loaders.full_load(version, id)
         index.local_request("pack.compat.load_file_list", "Sounds", ".ogg", "sound_data", "filename", version, name)
 
     -- shaders in compat mode are only required for 21
-    if not args.headless and version == 21 then
+    if not args.is_main_headless and version == 21 then
         pack.shaders = index.local_request(
             "pack.compat.load_file_list",
             "Shaders",

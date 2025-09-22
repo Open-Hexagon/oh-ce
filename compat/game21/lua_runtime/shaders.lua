@@ -14,10 +14,7 @@ local function get_shader_id(pack_data, filename)
         return loaded_pack_shaders[filename]
     else
         local shader = pack_data.shaders[filename]
-        if shader == nil then
-            require("compat.game21.lua_runtime").error("Shader '" .. filename .. "' does not exist!")
-            return -1
-        else
+        if shader then
             local id = #shaders + 1
             shaders[id] = shader
             loaded_filenames[pack_data.info.path] = loaded_filenames[pack_data.info.path] or {}
@@ -25,6 +22,8 @@ local function get_shader_id(pack_data, filename)
             return id
         end
     end
+    require("compat.game21.lua_runtime").error("Shader '" .. filename .. "' does not exist!")
+    return -1
 end
 
 local function check_valid_shader_id(id)
