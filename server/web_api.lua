@@ -7,13 +7,12 @@ local http = require("extlibs.http")
 local url = require("socket.url")
 local log = require("log")("server.web_api")
 local zip = require("extlibs.love-zip")
-local threadify = require("threadify")
-local game_handler = require("game_handler")
 local async = require("async")
+local assets = require("asset_system")
 require("love.timer")
 
-async.busy_await(game_handler.init())
-local packs = game_handler.get_packs()
+async.busy_await(assets.index.request("pack_level_data", "pack.load_register"))
+local packs = assets.mirror.pack_level_data
 
 local zip_path = "zip_cache/"
 if not love.filesystem.getInfo(zip_path) then
@@ -126,8 +125,11 @@ end
 
 app.handlers["/get_pack_preview_data/.../..."] = function(captures, headers)
     headers["content-type"] = "application/json"
-    local result = async.busy_await(game_handler.get_preview_data(tonumber(captures[1]), captures[2]))
-    return json.encode(result)
+    local game_version = tonumber(captures[1])
+    local pack_folder = captures[2]
+    local key = ("preview_data_%d_%s"):format(game_version, pack_folder)
+    async.busy_await(assets.index.request(key, "pack.compat.preview_data", game_version, pack_folder), true)
+    return json.encode(assets.mirror[key])
 end
 
 local pack_list = {}
@@ -185,4 +187,7 @@ for i = 1, #packs do
 end
 log("Done compressing all packs")
 
-app:run()
+while true do
+    assets.mirror_client.update()
+    app:run_once()
+end
