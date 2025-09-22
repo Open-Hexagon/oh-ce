@@ -122,8 +122,10 @@ function love.run()
 
             -- exit if another thread has an error
             love.event.pump()
-            for name, _, b in love.event.poll() do
-                if name == "threaderror" then
+            for name, a, b in love.event.poll() do
+                if name == "quit" then
+                    return a or 0
+                elseif name == "threaderror" then
                     log("Error in thread: " .. b, 10)
                     return 0
                 end

@@ -51,7 +51,9 @@ local function run_server(host, port, on_connection)
         if not is_thread then
             love.event.pump()
             for event_name, _, b in love.event.poll() do
-                if event_name == "threaderror" then
+                if event_name == "quit" then
+                    return
+                elseif event_name == "threaderror" then
                     log("Error in thread: " .. b, 10)
                     return
                 end
@@ -102,27 +104,6 @@ packet_handler21.init(database, is_thread)
 if start_web then
     web_thread:start()
 end
-
-local ffi = require("ffi")
-
-ffi.cdef([[
-typedef void (*__sighandler_t) (int);
-__sighandler_t signal (int __sig, __sighandler_t __handler);
-]])
-
-local function handler()
-    ffi.C.signal(2, handler)
-    log("got interrupt while running server, shutting down")
-    log("waiting for game to stop...")
-    packet_handler21.stop_game()
-    log("waiting for database to stop...")
-    database.stop()
-    if start_web and not web_thread:isRunning() then
-        log("Error in web thread: " .. web_thread:getError())
-    end
-    os.exit(1)
-end
-ffi.C.signal(2, handler)
 
 run_server("0.0.0.0", 50505, function(client)
     local client_ip, client_port = client:getpeername()
