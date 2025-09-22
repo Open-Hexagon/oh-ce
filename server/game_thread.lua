@@ -3,8 +3,7 @@ local log = require("log")(...)
 local msgpack = require("extlibs.msgpack.msgpack")
 local replay = require("game_handler.replay")
 local game_handler = require("game_handler")
-local config = require("config")
-local threadify = require("threadify")
+local assets = require("asset_system")
 local async = require("async")
 require("love.timer")
 
@@ -196,16 +195,20 @@ end
 
 local run = true
 while run do
-    local cmd = love.thread.getChannel("game_commands"):demand()
-    if cmd[1] == "stop" then
-        run = false
-    else
-        xpcall(function()
-            local fn = api[cmd[1]]
-            table.remove(cmd, 1)
-            fn(unpack(cmd))
-        end, function(err)
-            log("Error while verifying replay:\n", err)
-        end)
+    local cmd = love.thread.getChannel("game_commands"):demand(1)
+    -- TODO: this causes all asset loading to have up to 1s delay
+    assets.mirror_client.update()
+    if cmd then
+        if cmd[1] == "stop" then
+            run = false
+        else
+            xpcall(function()
+                local fn = api[cmd[1]]
+                table.remove(cmd, 1)
+                fn(unpack(cmd))
+            end, function(err)
+                log("Error while verifying replay:\n", err)
+            end)
+        end
     end
 end
