@@ -100,9 +100,20 @@ function love.run()
 
     if args.server and not args.render then
         -- game21 compat server (made for old clients)
-        require("server")
+        local run = require("server")
         return function()
-            return 0
+            run()
+            assets.mirror_client.update()
+            -- exit if an error happened in a different thread
+            love.event.pump()
+            for event_name, a, b in love.event.poll() do
+                if event_name == "quit" then
+                    return a or 0
+                elseif event_name == "threaderror" then
+                    log("Error in thread: " .. b, 10)
+                    return 1
+                end
+            end
         end
     end
 

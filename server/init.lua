@@ -10,14 +10,14 @@ local socket = require("socket")
 
 database.set_identity(0)
 
-local function run_server(host, port, on_connection)
+local function server_get_run_function(host, port, on_connection)
     local server = assert(socket.bind(host, port))
     assert(server:settimeout(0, "b"))
     log("listening on", server:getsockname())
 
     local coroutines = {}
     local clients = {}
-    while true do
+    return function()
         if #clients == 0 then
             love.timer.sleep(0.1)
         end
@@ -44,18 +44,6 @@ local function run_server(host, port, on_connection)
                 if not success then
                     log("Error in coroutine:", err .. "\n" .. debug.traceback(coroutines[i]))
                     log("Forcibly closing client:", pcall(clients[i].close, clients[i]))
-                end
-            end
-        end
-        -- exit if an error happened in a different thread
-        if not is_thread then
-            love.event.pump()
-            for event_name, _, b in love.event.poll() do
-                if event_name == "quit" then
-                    return
-                elseif event_name == "threaderror" then
-                    log("Error in thread: " .. b, 10)
-                    return
                 end
             end
         end
@@ -105,7 +93,7 @@ if start_web then
     web_thread:start()
 end
 
-run_server("0.0.0.0", 50505, function(client)
+local run_function = server_get_run_function("0.0.0.0", 50505, function(client)
     local client_ip, client_port = client:getpeername()
     local name = client_ip .. ":" .. client_port
     local pending_packet_size
@@ -204,3 +192,10 @@ run_server("0.0.0.0", 50505, function(client)
         coroutine.yield()
     end
 end)
+
+if is_thread then
+    while true do
+        run_function()
+    end
+end
+return run_function
