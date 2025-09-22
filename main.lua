@@ -129,7 +129,7 @@ function love.run()
         async.busy_await(game_handler.init())
         local Replay = require("game_handler.replay")
         return function()
-            local replay_file = love.thread.getChannel("replays_to_render"):demand(10)
+            local replay_file = love.thread.getChannel("replays_to_render"):demand(1)
 
             -- exit if another thread has an error
             love.event.pump()
