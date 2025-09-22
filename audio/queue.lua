@@ -60,7 +60,7 @@ end
 
 function audio.new_static(file)
     local data
-    if file.typeOf and file.typeOf("SoundData") then
+    if file.typeOf and file:typeOf("SoundData") then
         data = file
     else
         data = love.sound.newSoundData(file)
