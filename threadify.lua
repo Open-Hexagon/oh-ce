@@ -21,6 +21,7 @@ if is_thread then
     })
 
     local function run_coroutine(co, thread_id, call_id, cmd)
+        api._threadify_calling_thread_id = thread_id -- expose thread id in case a function needs it
         local success, ret = coroutine.resume(co, unpack(cmd or {}, 4))
         if not success then
             ret = (ret or "") .. "\n" .. debug.traceback(co)
@@ -104,7 +105,7 @@ else
 
     -- get a unique id for this thread using a counter from a channel
     ---@type ThreadId
-    local thread_id = love.thread.getChannel("thread_ids"):performAtomic(function(channel)
+    threadify.thread_id = love.thread.getChannel("thread_ids"):performAtomic(function(channel)
         local counter = (channel:pop() or 0) + 1
         channel:push(counter)
         return counter
@@ -137,7 +138,7 @@ else
                 require_string = require_string,
                 resolvers = {},
                 rejecters = {},
-                out_channel = love.thread.getChannel(("%s_%d_out"):format(require_string, thread_id)),
+                out_channel = love.thread.getChannel(("%s_%d_out"):format(require_string, threadify.thread_id)),
             }
             thread_list[#thread_list + 1] = data
             thread_map[require_string] = data
@@ -149,7 +150,7 @@ else
             __index = function(_, key)
                 return function(...)
                     ---@type ThreadCommand
-                    local msg = { thread_id, -1, key, ... }
+                    local msg = { threadify.thread_id, -1, key, ... }
                     if no_responses then
                         cmd_channel:push(msg)
                         return
