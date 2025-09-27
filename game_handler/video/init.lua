@@ -33,12 +33,9 @@ api.running = false
 ---@param framerate integer
 ---@param sample_rate integer
 function api.start(filename, width, height, framerate, sample_rate)
-    if width % 2 == 1 or height % 2 == 1 then
-        error("width and height must be a multiple of 2.")
-    end
-    if clib.start_encoding(filename, width, height, framerate, sample_rate) ~= 0 then
-        error("Failed to initialize ffmpeg.")
-    end
+    assert(width % 2 == 0 and height % 2 == 0, "width and height must be a multiple of 2.")
+    assert(clib, "Tried to encode video without encoder.")
+    assert(clib.start_encoding(filename, width, height, framerate, sample_rate) == 0, "Failed to initialize ffmpeg.")
     api.audio_frame_size = clib.get_audio_frame_size()
     api.running = true
 end
@@ -49,17 +46,13 @@ local imagedata
 ---@param texture love.Texture
 function api.supply_video_data(texture)
     imagedata = love.graphics.readbackTexture(texture, nil, nil, nil, nil, nil, nil, imagedata)
-    if clib.supply_video_data(imagedata:getFFIPointer()) ~= 0 then
-        error("Failed sending video frame.")
-    end
+    assert(clib.supply_video_data(imagedata:getFFIPointer()) == 0, "Failed sending video frame.")
 end
 
 ---add an audio frame
 ---@param audiodata love.SoundData
 function api.supply_audio_data(audiodata)
-    if clib.supply_audio_data(audiodata:getFFIPointer()) ~= 0 then
-        error("Failed sending audio frame.")
-    end
+    assert(clib.supply_audio_data(audiodata:getFFIPointer()) == 0, "Failed sending audio frame.")
 end
 
 ---stop encoding the video
