@@ -40,7 +40,8 @@ local function parse_cap_color(obj)
             legacy = true
         end
         if legacy then
-            return 4 -- use the color of the 1st background panel (5 would be 2nd)
+            -- use the color of the 1st background panel or the one of the index
+            return 4 + (obj.index or 0)
         else
             set_color_data_defaults(obj)
             return 3 -- custom color
