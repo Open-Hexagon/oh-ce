@@ -1,3 +1,4 @@
+local log = require("log")(...)
 local ffi = require("ffi")
 
 ffi.cdef([[
@@ -8,15 +9,20 @@ int supply_video_data(const void* video_data);
 void stop_encoding();
 ]])
 
-local clib
-local os = love.system.getOS()
-if os == "OS X" or os == "iOS" then
-    clib = ffi.load("lib/libencode.dylib")
-elseif os == "Windows" then
-    clib = ffi.load("lib/libencode.dll")
-elseif os == "Linux" or os == "Android" then
-    clib = ffi.load("lib/libencode.so")
+local clib_path
+local sys = love.system.getOS()
+if sys == "OS X" or sys == "iOS" then
+    clib_path = "lib/libencode.dylib"
+elseif sys == "Windows" then
+    clib_path = "lib/libencode.dll"
+elseif sys == "Linux" or sys == "Android" then
+    clib_path = "lib/libencode.so"
 end
+local success, clib = pcall(ffi.load, clib_path)
+if not success then
+    log(("Failed to load '%s'. The video encoder is unavailable."):format(clib_path))
+end
+
 local api = {}
 api.running = false
 
