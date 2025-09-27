@@ -18,6 +18,7 @@ elseif os == "Linux" or os == "Android" then
     clib = ffi.load("lib/libencode.so")
 end
 local api = {}
+api.running = false
 
 ---start encoding a video file
 ---@param filename string
@@ -33,6 +34,7 @@ function api.start(filename, width, height, framerate, sample_rate)
         error("Failed to initialize ffmpeg.")
     end
     api.audio_frame_size = clib.get_audio_frame_size()
+    api.running = true
 end
 
 local imagedata
@@ -57,6 +59,7 @@ end
 ---stop encoding the video
 function api.stop()
     clib.stop_encoding()
+    api.running = false
 end
 
 return api
