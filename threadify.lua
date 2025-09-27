@@ -5,23 +5,29 @@ local modname, is_thread = ...
 if is_thread then
     local send_responses = not select(3, ...)
     local api = require(modname)
+
     local in_channel = love.thread.getChannel(modname .. "_cmd")
-    local out_channel = love.thread.getChannel(modname .. "_out")
-    local run = true
-    local running_coroutines = {}
-    local function run_coroutine(co, call_id, cmd)
-        local success, ret = coroutine.resume(co, unpack(cmd or {}, 3))
+    -- make a different out channel for each thread that sends a request
+    local out_channels = setmetatable({}, {
+        __index = function(t, thread_id)
+            t[thread_id] = love.thread.getChannel(("%s_%d_out"):format(modname, thread_id))
+            return t[thread_id]
+        end,
+    })
+
+    local function run_coroutine(co, thread_id, call_id, cmd)
+        local success, ret = coroutine.resume(co, unpack(cmd or {}, 4))
         if not success then
             ret = (ret or "") .. "\n" .. debug.traceback(co)
         end
         local is_dead = coroutine.status(co) == "dead"
         if is_dead then
             if send_responses then
-                out_channel:push({ call_id, success, ret })
+                out_channels[thread_id]:push({ call_id, success, ret })
             end
             if not success then
                 if cmd then
-                    log(("Error calling '%s.%s' with:"):format(modname, cmd[2]), unpack(cmd, 3))
+                    log(("Error calling '%s.%s' with:"):format(modname, cmd[3]), unpack(cmd, 4))
                 else
                     log(("Error resuming coroutine in %s"):format(modname))
                 end
@@ -30,8 +36,12 @@ if is_thread then
         end
         return is_dead
     end
+
+    local run = true
+    local running_coroutines = {}
     local update_fun, updater_count = require("update_functions")()
     while run do
+        -- get command and update if necessary
         local cmd
         if #running_coroutines > 0 or updater_count > 0 then
             cmd = in_channel:demand(0.01)
@@ -39,21 +49,29 @@ if is_thread then
         else
             cmd = in_channel:demand()
         end
+
+        -- process command
         if cmd then
-            local call_id = cmd[1]
-            local fn = api[cmd[2]]
+            local thread_id = cmd[1]
+            local call_id = cmd[2]
+            local fn = api[cmd[3]]
             if type(fn) == "function" then
                 local co = coroutine.create(fn)
-                if not run_coroutine(co, call_id, cmd) then
-                    running_coroutines[#running_coroutines + 1] = { call_id, co }
+                if not run_coroutine(co, thread_id, call_id, cmd) then
+                    running_coroutines[#running_coroutines + 1] = { thread_id, call_id, co }
                 end
             elseif send_responses then
-                out_channel:push({ call_id, false, "'" .. modname .. "." .. cmd[2] .. "' is not a function" })
+                out_channels[thread_id]:push({
+                    call_id,
+                    false,
+                    ("'%s.%s' is not a function"):format(modname, cmd[3]),
+                })
             end
+        -- process pending commands
         else
             for i = #running_coroutines, 1, -1 do
-                local call_id, co = unpack(running_coroutines[i])
-                if run_coroutine(co, call_id) then
+                local thread_id, call_id, co = unpack(running_coroutines[i])
+                if run_coroutine(co, thread_id, call_id) then
                     table.remove(running_coroutines, i)
                 end
             end
@@ -65,6 +83,11 @@ else
     local thread_names = {}
     local threadify = {}
     local threads_channel = love.thread.getChannel("threads")
+    local thread_id = love.thread.getChannel("thread_ids"):performAtomic(function(channel)
+        local counter = (channel:pop() or 0) + 1
+        channel:push(counter)
+        return counter
+    end)
 
     ---run a module in a different thread but allow calling its functions from here
     ---@param require_string string
@@ -75,6 +98,7 @@ else
             local thread_table = {
                 resolvers = {},
                 rejecters = {},
+                out_channel = love.thread.getChannel(("%s_%d_out"):format(require_string, thread_id)),
             }
             threads_channel:performAtomic(function(channel)
                 local all_threads = channel:pop() or {}
@@ -94,30 +118,21 @@ else
         end
         local thread = threads[require_string]
         local interface = {}
-        local id_channel = love.thread.getChannel(require_string .. "_ids")
         local cmd_channel = love.thread.getChannel(require_string .. "_cmd")
+        local request_id = 0
         return setmetatable(interface, {
             __index = function(_, key)
                 return function(...)
-                    local msg = { -1, key, ... }
+                    local msg = { thread_id, -1, key, ... }
                     if no_responses then
                         cmd_channel:push(msg)
                         return
                     end
                     return async.promise:new(function(resolve, reject)
-                        -- get a request id with no duplicates across any other threads
-                        local request_id = 1
-                        id_channel:performAtomic(function(channel)
-                            local used_ids = channel:pop() or {}
-                            request_id = (used_ids.count or 0) + 1
-                            while used_ids[request_id] do
-                                request_id = request_id + 1
-                            end
-                            used_ids[request_id] = true
-                            used_ids.count = (used_ids.count or 0) + 1
-                            channel:push(used_ids)
-                        end)
-                        msg[1] = request_id
+                        repeat
+                            request_id = (request_id + 1) % 256
+                        until thread.resolvers[request_id] == nil
+                        msg[2] = request_id
                         thread.resolvers[request_id] = resolve
                         thread.rejecters[request_id] = reject
                         cmd_channel:push(msg)
@@ -132,14 +147,7 @@ else
         for i = 1, #thread_names do
             local require_string = thread_names[i]
             local thread = threads[require_string]
-            local out_channel = love.thread.getChannel(require_string .. "_out")
-            local result
-            local check_result = out_channel:peek()
-            if check_result then
-                if thread.resolvers[check_result[1]] and thread.rejecters[check_result[1]] then
-                    result = out_channel:pop()
-                end
-            end
+            local result = thread.out_channel:pop()
             if result then
                 if result[2] then
                     thread.resolvers[result[1]](unpack(result, 3))
@@ -149,16 +157,6 @@ else
                 end
                 thread.resolvers[result[1]] = nil
                 thread.rejecters[result[1]] = nil
-                -- remove id from used id table for this thread
-                local id_channel = love.thread.getChannel(require_string .. "_ids")
-                id_channel:performAtomic(function(channel)
-                    local used_ids = channel:pop()
-                    if used_ids then
-                        used_ids[result[1]] = nil
-                        used_ids.count = used_ids.count - 1
-                        channel:push(used_ids)
-                    end
-                end)
             end
         end
     end
