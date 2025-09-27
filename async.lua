@@ -120,12 +120,19 @@ function async.busy_await(prom, in_coroutine_loop)
         end
     end
     local update_fun = require("update_functions")()
+    local exit
     while not prom.executed do
         -- main thread is the only one that needs to do this
         if is_main then
             love.event.pump()
-            for event, _, b in love.event.poll() do
-                if event == "threaderror" then
+            for name, a, b in love.event.poll() do
+                -- check exit conditions
+                if name == "quit" then
+                    -- the actual exiting happens outside of this loop
+                    -- the event is pushed again below so that a loop
+                    -- that is actually handled by love can handle it
+                    exit = a or 0
+                elseif name == "threaderror" then
                     error("Error in thread: " .. b)
                 end
             end
@@ -139,6 +146,9 @@ function async.busy_await(prom, in_coroutine_loop)
         else
             love.timer.sleep(0.01)
         end
+    end
+    if exit then
+        love.event.quit(exit)
     end
     return unpack(prom.result)
 end
