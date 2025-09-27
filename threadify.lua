@@ -2,6 +2,11 @@ require("platform")
 local log = require("log")("threadify")
 local modname, is_thread = ...
 
+---@alias ThreadId integer
+---@alias CallId integer
+---@alias ThreadCommand [ThreadId, CallId, string, ...]
+---@alias ThreadResult [CallId, boolean, unknown]
+
 if is_thread then
     local send_responses = not select(3, ...)
     local api = require(modname)
@@ -23,7 +28,7 @@ if is_thread then
         local is_dead = coroutine.status(co) == "dead"
         if is_dead then
             if send_responses then
-                out_channels[thread_id]:push({ call_id, success, ret })
+                out_channels[thread_id]:push({ call_id, success, ret } --[[@as ThreadResult]])
             end
             if not success then
                 if cmd then
@@ -42,6 +47,7 @@ if is_thread then
     local update_fun, updater_count = require("update_functions")()
     while run do
         -- get command and update if necessary
+        ---@type ThreadCommand?
         local cmd
         if #running_coroutines > 0 or updater_count > 0 then
             cmd = in_channel:demand(0.01)
@@ -65,7 +71,7 @@ if is_thread then
                     call_id,
                     false,
                     ("'%s.%s' is not a function"):format(modname, cmd[3]),
-                })
+                } --[[@as ThreadResult]])
             end
         -- process pending commands
         else
@@ -79,10 +85,25 @@ if is_thread then
     end
 else
     local async = require("async")
-    local threads = {}
-    local thread_names = {}
+
+    ---@alias ThreadClient {
+    ---  require_string: string,
+    ---  resolvers: table<integer, fun(...: unknown)>,
+    ---  rejecters: table<integer, fun(...: unknown)>,
+    ---  out_channel: love.Channel,
+    ---  thread: love.Thread,
+    ---}
+
+    ---@type table<string, ThreadClient>
+    local thread_map = {}
+    ---@type ThreadClient[]
+    local thread_list = {}
+
     local threadify = {}
     local threads_channel = love.thread.getChannel("threads")
+
+    -- get a unique id for this thread using a counter from a channel
+    ---@type ThreadId
     local thread_id = love.thread.getChannel("thread_ids"):performAtomic(function(channel)
         local counter = (channel:pop() or 0) + 1
         channel:push(counter)
@@ -94,35 +115,42 @@ else
     ---@param no_responses boolean?
     ---@return table<string, fun(...): promise>
     function threadify.require(require_string, no_responses)
-        if not threads[require_string] then
-            local thread_table = {
+        if not thread_map[require_string] then
+            -- get thread if already running, start it if not
+            local thread
+            threads_channel:performAtomic(function(channel)
+                local all_threads = channel:pop() or {}
+                if all_threads and all_threads[require_string] then
+                    thread = all_threads[require_string]
+                else
+                    thread = love.thread.newThread("threadify.lua")
+                end
+                if not thread:isRunning() then
+                    thread:start(require_string, true, no_responses)
+                end
+                all_threads[require_string] = thread
+                channel:push(all_threads)
+            end)
+
+            -- add data to tables
+            local data = {
+                require_string = require_string,
                 resolvers = {},
                 rejecters = {},
                 out_channel = love.thread.getChannel(("%s_%d_out"):format(require_string, thread_id)),
             }
-            threads_channel:performAtomic(function(channel)
-                local all_threads = channel:pop() or {}
-                if all_threads and all_threads[require_string] then
-                    thread_table.thread = all_threads[require_string]
-                else
-                    thread_table.thread = love.thread.newThread("threadify.lua")
-                end
-                if not thread_table.thread:isRunning() then
-                    thread_table.thread:start(require_string, true, no_responses)
-                end
-                all_threads[require_string] = thread_table.thread
-                channel:push(all_threads)
-            end)
-            thread_names[#thread_names + 1] = require_string
-            threads[require_string] = thread_table
+            thread_list[#thread_list + 1] = data
+            thread_map[require_string] = data
         end
-        local thread = threads[require_string]
-        local interface = {}
+
+        local thread = thread_map[require_string]
         local cmd_channel = love.thread.getChannel(require_string .. "_cmd")
+        ---@type CallId
         local request_id = 0
-        return setmetatable(interface, {
+        return setmetatable({}, {
             __index = function(_, key)
                 return function(...)
+                    ---@type ThreadCommand
                     local msg = { thread_id, -1, key, ... }
                     if no_responses then
                         cmd_channel:push(msg)
@@ -142,11 +170,11 @@ else
         })
     end
 
-    ---update threaded modules
+    ---update thread clients for the modules
     function threadify.update()
-        for i = 1, #thread_names do
-            local require_string = thread_names[i]
-            local thread = threads[require_string]
+        for i = 1, #thread_list do
+            local thread = thread_list[i]
+            ---@type ThreadResult?
             local result = thread.out_channel:pop()
             if result then
                 if result[2] then
