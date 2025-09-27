@@ -15,7 +15,7 @@ local function wait_for_value(channel_name)
         update()
         value = channel:pop()
         love.timer.sleep(0.01)
-        if love.timer.getTime() - start > 5 then
+        if love.timer.getTime() - start > 10 then
             error("failed getting level data from thread")
         end
     until value
