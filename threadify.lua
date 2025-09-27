@@ -145,8 +145,6 @@ else
 
         local thread = thread_map[require_string]
         local cmd_channel = love.thread.getChannel(require_string .. "_cmd")
-        ---@type CallId
-        local request_id = 0
         return setmetatable({}, {
             __index = function(_, key)
                 return function(...)
@@ -157,9 +155,10 @@ else
                         return
                     end
                     return async.promise:new(function(resolve, reject)
-                        repeat
-                            request_id = (request_id + 1) % 256
-                        until thread.resolvers[request_id] == nil
+                        local request_id = 1
+                        while thread.resolvers[request_id] do
+                            request_id = request_id + 1
+                        end
                         msg[2] = request_id
                         thread.resolvers[request_id] = resolve
                         thread.rejecters[request_id] = reject
