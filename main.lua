@@ -5,6 +5,7 @@ local threadify = require("threadify")
 local channel_callbacks = require("channel_callbacks")
 local audio = require("audio")
 local assets = require("asset_system")
+local video_encoder = require("game_handler.video")
 
 local function add_require_path(path)
     love.filesystem.setRequirePath(love.filesystem.getRequirePath() .. ";" .. path)
@@ -14,8 +15,40 @@ local function add_c_require_path(path)
     love.filesystem.setCRequirePath(love.filesystem.getCRequirePath() .. ";" .. path)
 end
 
+local function event_loop(config, game_handler, ui)
+    love.event.pump()
+    for name, a, b, c, d, e, f in love.event.poll() do
+        -- check exit conditions
+        local exit
+        if name == "quit" then
+            exit = a or 0
+        elseif name == "threaderror" then
+            log("Error in thread: " .. b)
+            exit = 1
+        end
+
+        -- cleanup and exit
+        if exit then
+            if video_encoder.running then
+                video_encoder.stop()
+            end
+            if config then
+                config.save()
+            end
+            return exit
+        end
+
+        -- pass events to other modules
+        if game_handler then
+            game_handler.process_event(name, a, b, c, d, e, f)
+        end
+        if ui then
+            ui.process_event(name, a, b, c, d, e, f)
+        end
+    end
+end
+
 local render_replay = async(function(game_handler, replay, out_file, final_score)
-    local video_encoder = require("game_handler.video")
     game_handler.set_game_dimensions(1920, 1080)
     local ui = require("ui")
     ui.open_screen("game")
@@ -29,14 +62,6 @@ local render_replay = async(function(game_handler, replay, out_file, final_score
     local last_print = love.timer.getTime()
     local canvas = love.graphics.newCanvas(1920, 1080, { msaa = 4 })
     return function()
-        love.event.pump()
-        for name, a in love.event.poll() do
-            if name == "quit" then
-                log("Aborting video rendering.")
-                video_encoder.stop()
-                return a or 0
-            end
-        end
         if final_score then
             local now = love.timer.getTime()
             if now - last_print > 10 then
@@ -70,6 +95,7 @@ local render_replay = async(function(game_handler, replay, out_file, final_score
                 end
             end
         end
+        return event_loop()
     end
 end)
 
@@ -104,16 +130,7 @@ function love.run()
         return function()
             run()
             assets.mirror_client.update()
-            -- exit if an error happened in a different thread
-            love.event.pump()
-            for event_name, a, b in love.event.poll() do
-                if event_name == "quit" then
-                    return a or 0
-                elseif event_name == "threaderror" then
-                    log("Error in thread: " .. b, 10)
-                    return 1
-                end
-            end
+            return event_loop()
         end
     end
 
@@ -131,16 +148,6 @@ function love.run()
         return function()
             local replay_file = love.thread.getChannel("replays_to_render"):demand(1)
 
-            -- exit if another thread has an error
-            love.event.pump()
-            for name, a, b in love.event.poll() do
-                if name == "quit" then
-                    return a or 0
-                elseif name == "threaderror" then
-                    log("Error in thread: " .. b, 10)
-                    return 0
-                end
-            end
             assets.mirror_client.update()
 
             -- no replay, continue
@@ -172,6 +179,7 @@ function love.run()
                     log("done.")
                 end
             end
+            return event_loop()
         end
     end
 
@@ -230,20 +238,6 @@ function love.run()
             last_time = last_time + delta_target
         end
 
-        -- process events
-        love.event.pump()
-        for name, a, b, c, d, e, f in love.event.poll() do
-            if name == "quit" then
-                config.save()
-                return a or 0
-            elseif name == "threaderror" then
-                config.save()
-                error("Error in thread: " .. b)
-            end
-            game_handler.process_event(name, a, b, c, d, e, f)
-            ui.process_event(name, a, b, c, d, e, f)
-        end
-
         threadify.update()
         channel_callbacks.update()
         ui.update(love.timer.getDelta())
@@ -266,5 +260,6 @@ function love.run()
             love.graphics.present()
         end
         love.timer.step()
+        return event_loop(config, game_handler, ui)
     end
 end
