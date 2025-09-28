@@ -150,33 +150,30 @@ function love.run()
 
             assets.mirror_client.update()
 
-            -- no replay, continue
-            if not replay_file then
-                return
-            end
-
-            -- replay may no longer exist if player got new pb
-            if love.filesystem.getInfo(replay_file) then
-                local replay = Replay:new(replay_file)
-                local out_file_path = love.filesystem.getSaveDirectory() .. "/" .. replay_file .. ".part.mp4"
-                log("Got new #1 on '" .. replay.level_id .. "' from '" .. replay.pack_id .. "', rendering...")
-                local fn = async.busy_await(render_replay(game_handler, replay, out_file_path, replay.score))
-                local aborted = false
-                while fn() ~= 0 do
-                    local abort_hash = love.thread.getChannel("abort_replay_render"):pop()
-                    if abort_hash and abort_hash == replay_file:match(".*/(.*)") then
-                        aborted = true
-                        require("game_handler.video").stop()
-                        game_handler.stop()
-                        break
+            if replay_file then
+                -- replay may no longer exist if player got new pb
+                if love.filesystem.getInfo(replay_file) then
+                    local replay = Replay:new(replay_file)
+                    local out_file_path = love.filesystem.getSaveDirectory() .. "/" .. replay_file .. ".part.mp4"
+                    log("Got new #1 on '" .. replay.level_id .. "' from '" .. replay.pack_id .. "', rendering...")
+                    local fn = async.busy_await(render_replay(game_handler, replay, out_file_path, replay.score))
+                    local aborted = false
+                    while fn() ~= 0 do
+                        local abort_hash = love.thread.getChannel("abort_replay_render"):pop()
+                        if abort_hash and abort_hash == replay_file:match(".*/(.*)") then
+                            aborted = true
+                            require("game_handler.video").stop()
+                            game_handler.stop()
+                            break
+                        end
                     end
-                end
-                if aborted then
-                    log("aborted rendering.")
-                    love.filesystem.remove(replay_file .. ".part.mp4")
-                else
-                    os.rename(out_file_path, out_file_path:gsub("%.part%.mp4", "%.mp4"))
-                    log("done.")
+                    if aborted then
+                        log("aborted rendering.")
+                        love.filesystem.remove(replay_file .. ".part.mp4")
+                    else
+                        os.rename(out_file_path, out_file_path:gsub("%.part%.mp4", "%.mp4"))
+                        log("done.")
+                    end
                 end
             end
             return event_loop()
