@@ -18,6 +18,9 @@ local index = {}
 ---  id: AssetId,
 ---  key: MirrorKey?,
 ---  value: unknown?,
+---  last_mirrored_value: unknown?,
+---  last_mirror_targets: table<ThreadId, boolean>?,
+---  mirror_targets: table<ThreadId, boolean>,
 ---}
 
 -- this is the real global index
@@ -25,15 +28,6 @@ local index = {}
 local assets = {}
 ---@type table<MirrorKey, Asset>
 local mirrored_assets = {}
-
--- expose mirror register functions (see mirror_server.lua for function descriptions)
-function index.register_mirror()
-    return mirror_server.register_mirror(mirrored_assets)
-end
-
-function index.unregister_mirror()
-    mirror_server.unregister_mirror()
-end
 
 -- allow unused assets to be retained for a certain amount of requests/reloads
 -- this prevents them from unloading just before the next reload uses them again
@@ -92,7 +86,8 @@ end
 ---puts an asset on the stack and calls its loader or unloads it
 ---@param asset Asset
 ---@param clear boolean?
-local function load_asset(asset, clear)
+---@param target_thread ThreadId?
+local function load_asset(asset, clear, target_thread)
     -- push asset id to loading stack
     loading_stack_index = loading_stack_index + 1
     loading_stack[loading_stack_index] = asset
@@ -143,7 +138,7 @@ local function load_asset(asset, clear)
 
     -- only mirror after loading if there is a key
     if asset.key then
-        mirror_server.schedule_sync(asset)
+        mirror_server.schedule_sync(asset, target_thread)
     end
 end
 
@@ -197,6 +192,7 @@ function index.request(key, loader, ...)
             dependencies = {},
             resources = {},
             id = id,
+            mirror_targets = {},
         }
     local asset = assets[id]
 
@@ -207,12 +203,14 @@ function index.request(key, loader, ...)
         else
             asset.key = key
             mirrored_assets[key] = asset
-            if asset.value then
-                -- newly requested with key and already loaded, so should mirror
-                -- since it is otherwise only done when loading
-                mirror_server.schedule_sync(asset)
-            end
         end
+    end
+
+    -- schedule sync if thread is requesting asset for the first time
+    local calling_thread = index._threadify_calling_thread_id
+    if key and not asset.mirror_targets[calling_thread] then
+        asset.mirror_targets[calling_thread] = true
+        mirror_server.schedule_sync(asset, calling_thread)
     end
 
     -- if asset is requested from another loader the other one has this one as dependency
@@ -223,7 +221,7 @@ function index.request(key, loader, ...)
 
     -- only load if the asset is not already loaded
     if not asset.value then
-        load_asset(asset)
+        load_asset(asset, false, calling_thread)
     end
 
     -- mirror all pending assets once at the end of the initial request
@@ -266,8 +264,8 @@ function index.unload(id_or_key)
     -- only mirror after unloading if there is a key
     if asset.key then
         mirrored_assets[asset.key] = nil
-        mirror_server.schedule_sync(asset)
         mirror_server.sync_pending_assets()
+        asset.mirror_targets = {}
     end
 end
 

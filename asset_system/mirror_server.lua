@@ -3,92 +3,100 @@ local log = require("log")(...)
 
 local mirror_server = {}
 
--- required to know how many acks to wait for when sending notifications for mirroring
-local mirror_count = 0
-
----register a mirror (to wait for when sending notifications) returns currently loaded assets
----@param mirrored_assets table<MirrorKey, Asset>
----@return table<MirrorKey, unknown>
----@nodiscard
-function mirror_server.register_mirror(mirrored_assets)
-    mirror_count = mirror_count + 1
-    local new_mirror = {}
-    for key, asset in pairs(mirrored_assets) do
-        if asset.value then
-            new_mirror[key] = asset.value
-        end
-    end
-    return new_mirror
-end
-
----unregister a mirror so the asset thread doesn't wait for it to confirm notifications
----the mirror still has to confirm notifications until the promise is fulfilled (otherwise the asset thread may get stuck)
-function mirror_server.unregister_mirror()
-    mirror_count = mirror_count - 1
-end
-
--- channels to communicate with mirrors
-local update_channel = love.thread.getChannel("asset_index_updates")
-local update_ack_channel = love.thread.getChannel("asset_index_update_acks")
-
 -- keep track of assets which need to have notifications sent once loading stack is empty
 ---@type table<Asset, boolean>
 local pending_assets = {}
-local notification_id_offset = 0
+---@type table<Asset, ThreadId>
+local target_thread_overwrite = {}
 
-function mirror_server.schedule_sync(asset)
+---schedule a sync of an asset, it is possible to sync to a specific thread
+---@param asset Asset
+---@param target_thread ThreadId?
+function mirror_server.schedule_sync(asset, target_thread)
     -- use as map to prevent double entry
     pending_assets[asset] = true
+    target_thread_overwrite[asset] = target_thread
 end
 
----@alias MirrorNotification [integer, MirrorKey, unknown]
+---@alias MirrorNotification [MirrorKey, unknown]
 
-local function send_notification(id, asset)
-    ---@type MirrorNotification
-    local notification = { id, asset.key, asset.value }
-    -- send a table diff instead of whole table when last mirrored value is a table
-    local send_diff = type(asset.last_mirrored_value) == "table" and type(asset.value) == "table"
-    if send_diff then
-        notification[3] = ltdiff.diff(asset.last_mirrored_value, asset.value)
+---sends a notification to asset mirrors
+---@param asset Asset
+---@return table<love.Channel, integer>
+local function send_notification(asset)
+    local can_diff = true
+
+    -- get map of target threads
+    local targets = asset.mirror_targets
+    if target_thread_overwrite[asset] then
+        targets = { [target_thread_overwrite[asset]] = true }
     end
-    update_channel:push(notification)
+
+    -- count targets and check if there is a new target
+    local target_count = 0
+    asset.last_mirror_targets = asset.last_mirror_targets or {}
+    for thread, should_mirror in pairs(targets) do
+        if should_mirror then
+            target_count = target_count + 1
+        end
+        if asset.last_mirror_targets[thread] ~= should_mirror then
+            asset.last_mirror_targets[thread] = should_mirror
+            can_diff = false -- sending for the first time
+        end
+    end
+    -- if we sent a non-diff value to a thread that already has the value, it would try to interpret the value as diff
+    assert(can_diff or target_count == 1, "initial sync has to be triggered by request")
+
+    ---@type MirrorNotification
+    local notification = { asset.key, asset.value }
+
+    -- send a table diff instead of whole table when last mirrored value is a table
+    local send_diff = type(asset.last_mirrored_value) == "table" and type(asset.value) == "table" and can_diff
+    if send_diff then
+        notification[2] = ltdiff.diff(asset.last_mirrored_value, asset.value)
+    end
+    local wait_for = {}
+    for thread, should_mirror in pairs(targets) do
+        if should_mirror then
+            local channel = love.thread.getChannel("asset_index_updates_" .. thread)
+            wait_for[channel] = channel:push(notification)
+        end
+    end
     if send_diff then
         -- apply sent table diff to prevent having to send whole value for copying again
-        ltdiff.patch(asset.last_mirrored_value, notification[3])
+        ltdiff.patch(asset.last_mirrored_value, notification[2])
     else
         -- copy the value sent to the channel
-        asset.last_mirrored_value = update_channel:peek()[3]
+        asset.last_mirrored_value = next(wait_for):peek()[2]
     end
+    return wait_for
 end
 
 ---syncs all pending assets to all registered mirror clients
 function mirror_server.sync_pending_assets()
-    local notification_count = 0
     for asset in pairs(pending_assets) do
-        notification_count = notification_count + 1
-        local id = notification_count + notification_id_offset
-        send_notification(id, asset)
-        local acked = 0
+        local wait_for = send_notification(asset)
+
+        -- wait until mirrors processed the notification
         local timer = 0
-        while acked < mirror_count do
-            local ack_id = update_ack_channel:peek()
-            if ack_id and ack_id == id then
-                update_ack_channel:pop()
-                acked = acked + 1
+        repeat
+            local done = true
+            for channel, id in pairs(wait_for) do
+                done = done and channel:hasRead(id)
             end
-            love.timer.sleep(0.01)
-            timer = timer + 0.01
-            if timer > 1 then
-                log(string.format("Asset %s is taking an unusual amount of time being mirrored", asset.key))
-                timer = 0
+            if not done then
+                love.timer.sleep(0.01)
+                timer = timer + 0.01
+                if timer > 1 then
+                    log(string.format("Asset %s is taking an unusual amount of time being mirrored", asset.key))
+                    timer = 0
+                end
             end
-        end
-        update_channel:pop()
+        until done
+
+        -- mark assets as no longer pending
         pending_assets[asset] = nil
-    end
-    -- prevent sending the same id twice in succession
-    if notification_count > 0 then
-        notification_id_offset = notification_count + notification_id_offset > 1 and 0 or 1
+        target_thread_overwrite[asset] = nil
     end
 end
 

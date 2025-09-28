@@ -6,7 +6,7 @@ All loading happens in the main asset thread where the global index is created a
 
 The index internally uses ids that uniquely identify assets using their loader and the arguments passed to it. Already loaded assets are not reloaded when requested again.
 
-The keys in the mirror are supplied by the user. Only assets that have a user supplied key get mirrored. It is possible to retroactively add a key to an asset by requesting it again (this will not cause a reload).
+The keys in the mirror are supplied by the user. Only assets that have a user supplied key get mirrored. It is possible to retroactively add a key to an asset by requesting it again (this will not cause a reload). Additionally only threads that have requested an asset will also receive it in their mirror.
 
 For operations that require to be run on the main thread (e.g. opengl shader compilation) the loading process sends a request to the main thread which after finishing its frame processes it and sends the result back to the loading thread.
 
@@ -24,7 +24,7 @@ graph TD;
 ```
 
 ## Requesting
-Requesting an asset will return a promise that is fulfilled as soon as the asset is loaded and mirrored to all threads
+Requesting an asset will return a promise that is fulfilled as soon as the asset is loaded and mirrored to the current thread
 ```lua
 local assets = require("asset_system")
 ...
@@ -38,7 +38,7 @@ end)
 ```
 
 ## Loader
-Any asset before it appears in the index and gets mirrored to all threads must be requested with a loader which is a function that runs in the asset thread.
+Any asset before it appears in the index and gets mirrored to the current thread must be requested with a loader which is a function that runs in the asset thread.
 
 A loader can use other assets to create its own asset, these assets will then automatically note that they are depended on by the currently loading asset, so that once any of them changes this loader is called again. (note that if a loader depends on many assets all of them apart from the changed one are still cached)
 

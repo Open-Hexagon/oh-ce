@@ -1,6 +1,7 @@
 local log = require("log")("ui.overlay.packs.download_thread")
 local json = require("extlibs.json.json")
 local assets = require("asset_system")
+local async = require("async")
 local url = require("socket.url")
 require("love.timer")
 
@@ -57,10 +58,8 @@ end
 ---@param stop number
 ---@return table|boolean|nil
 function download.get_pack_list(start, stop)
+    async.busy_await(assets.index.request("pack_level_data", "pack.load_register"))
     local pack_list = assets.mirror.pack_level_data
-    if not pack_list then
-        error("pack registry was not loaded yet")
-    end
     local pack_data_list = api(("get_packs/%d/%d"):format(start, stop))
     if not pack_data_list then
         return

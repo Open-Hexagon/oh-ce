@@ -196,7 +196,6 @@ end
 local run = true
 while run do
     local cmd = love.thread.getChannel("game_commands"):demand(1)
-    -- TODO: this causes all asset loading to have up to 1s delay
     assets.mirror_client.update()
     if cmd then
         if cmd[1] == "stop" then
