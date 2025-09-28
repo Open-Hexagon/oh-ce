@@ -13,13 +13,16 @@ local asset_system = {
 local main_thread_tasks = love.thread.getChannel("asset_loading_main_thread_tasks")
 
 ---runs functions that only work on the main thread on behalf of the asset loaders
-function asset_system.run_main_thread_task()
-    local task = main_thread_tasks:pop()
-    if task == nil then
-        return
-    end
-    local ret = { loadstring(task[1])(unpack(task, 2)) }
-    main_thread_tasks:push(ret)
+---(usually runs only 1 task at a time to not slow down main thread too much, if all is set to true it will always run all available tasks)
+---@param all boolean?
+function asset_system.run_main_thread_task(all)
+    repeat
+        local task = main_thread_tasks:demand(all and 0.1 or 0)
+        if task then
+            local ret = { loadstring(task[1])(unpack(task, 2)) }
+            main_thread_tasks:supply(ret, all and 0.1 or 0)
+        end
+    until task == nil or not all
 end
 
 ---automatically call index.reload on the correct assets based on file changes

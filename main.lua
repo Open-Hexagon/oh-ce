@@ -130,6 +130,7 @@ function love.run()
         return function()
             run()
             assets.mirror_client.update()
+            assets.run_main_thread_task(true)
             return event_loop()
         end
     end
@@ -149,6 +150,7 @@ function love.run()
             local replay_file = love.thread.getChannel("replays_to_render"):demand(1)
 
             assets.mirror_client.update()
+            assets.run_main_thread_task(true)
 
             if replay_file then
                 -- replay may no longer exist if player got new pb
