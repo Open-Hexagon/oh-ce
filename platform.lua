@@ -8,6 +8,7 @@ local ffi = require("ffi")
 
 -- cffi-lua has its own ffi.tonumber
 -- luajit's ffi combines both in the default tonumber
+---@diagnostic disable-next-line: inject-field
 ffi.tonumber = ffi.tonumber or tonumber
 
 -- PUC lua 5.1 does not allow extra arguments in xpcall, 5.2+ and luajit do
@@ -27,11 +28,12 @@ end
 
 -- PUC lua 5.1 does not return nparams or isvararg from debug.getinfo
 -- instead the data is encoded in string.dump(function).
-if debug.getinfo(function(a, b) end).nparams ~= 2 then
+if debug.getinfo(function(_, _) end).nparams ~= 2 then
     local old_getinfo = debug.getinfo
+    ---@diagnostic disable-next-line: duplicate-set-field
     debug.getinfo = function(f, what)
         local res = old_getinfo(f, what)
-        local s = string.dump(f)
+        local s = string.dump(f --[[@as function]])
         assert(s:sub(1, 6) == "\27LuaQ\0", "This code works only in Lua 5.1")
         local int_size = s:byte(8)
         local ptr_size = s:byte(9)
