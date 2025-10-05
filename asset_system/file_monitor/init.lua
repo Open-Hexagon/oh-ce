@@ -1,13 +1,20 @@
 local log = require("log")(...)
+
+-- sorted by priority
+local implementations = {
+    "asset_system.file_monitor.luv_watcher",
+    "asset_system.file_monitor.poll_watcher",
+}
+log("Checking hot reloading backends...")
 local impl
-if pcall(function()
-    require("luv")
-end) then
-    log("luv backend is available for hot reloading")
-    impl = require("asset_system.file_monitor.luv_watcher")
-else
-    log("luv backend is not available for hot reloading, will fall back to polling")
-    impl = require("asset_system.file_monitor.poll_watcher")
+for i = 1, #implementations do
+    impl = require(implementations[i])
+    if impl then
+        log(("'%s' is available."):format(implementations[i]))
+        break
+    else
+        log(("'%s' is not available. Checking other backends..."):format(implementations[i]))
+    end
 end
 local threadify = require("threadify")
 local index = threadify.require("asset_system.index")

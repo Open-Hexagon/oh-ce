@@ -1,5 +1,8 @@
+local success, uv = pcall(require, "luv")
+if not success then
+    return false
+end
 local log = require("log")(...)
-local uv = require("luv")
 
 ---@type table<string, uv.uv_fs_event_t?>
 local event_handles = {}
@@ -7,7 +10,7 @@ local event_handles = {}
 local stopped = {}
 local save_dir = love.filesystem.getSaveDirectory()
 
----watch files (called on loop), calls yields path on file changes
+---watch files (called in loop), yields path on file changes
 ---@param file_list string[]
 return function(file_list)
     for i = 1, #file_list do
