@@ -62,7 +62,7 @@ function compat_loaders.json_file(path_or_content, use_vfs, filename)
     end
     -- catch decode errors
     local _, result = xpcall(json.decode_jsonc, function(msg)
-        log("Error: can't decode '" .. filename .. "': " .. msg)
+        log("Error: can't decode '" .. (filename or path_or_content) .. "': " .. msg)
     end, str)
     if type(result) == "userdata" then
         return {} -- jsonc does this when the string is empty for some reason
@@ -142,7 +142,7 @@ local function set_event_defaults(events)
 end
 
 function compat_loaders.level_data(path_or_content, is_content)
-    local level_json = index.local_request("pack.compat.json_file", path_or_content, is_content)
+    local level_json = index.local_request("pack.compat.json_file", path_or_content, is_content) or {}
     -- make keys have the same name for all versions
     -- get key names
     local key_names = {}
