@@ -21,10 +21,10 @@ function module.set_level_data(data, dm)
 end
 
 -- need a custom function to replicate stupid conversion causing fractals to work
+local to_radians_div = utils.float_round(57.3)
 local function getOrbit(degrees, distance)
-    degrees = utils.float_round(degrees)
-    return utils.float_round(math.cos((degrees / 57.3)) * distance),
-        utils.float_round(math.sin((degrees / 57.3)) * distance)
+    return utils.float_round(math.cos((degrees / to_radians_div)) * distance),
+        utils.float_round(math.sin((degrees / to_radians_div)) * distance)
 end
 
 function module.size()
