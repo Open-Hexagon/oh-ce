@@ -117,6 +117,10 @@ function utils.float_round(num)
     return ffi.tonumber(ffi.new("float", num))
 end
 
+function utils.int32(num)
+    return ffi.tonumber(ffi.new("int32_t", num))
+end
+
 -- This is quite messy since it's copied from 1.92
 function utils.get_color_from_hue(hue, color)
     hue = utils.float_round(hue)
