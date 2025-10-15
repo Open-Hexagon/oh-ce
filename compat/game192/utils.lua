@@ -117,8 +117,17 @@ function utils.float_round(num)
     return ffi.tonumber(ffi.new("float", num))
 end
 
-function utils.int32(num)
-    return ffi.tonumber(ffi.new("int32_t", num))
+local max_int = 2 ^ 31 - 1
+local min_int = -2 ^ 31
+
+-- replicate platform specific behavior of the abs function
+function utils.int_abs(num)
+    if num > max_int then
+        return min_int
+    elseif num <= min_int then
+        return min_int
+    end
+    return math.floor(math.abs(num))
 end
 
 -- This is quite messy since it's copied from 1.92

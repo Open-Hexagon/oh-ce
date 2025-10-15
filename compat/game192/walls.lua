@@ -141,7 +141,7 @@ function module.update(frametime, radius)
         local points_out_of_bg = 0
         for j = 1, 8, 2 do
             local x, y = wall.vertices[j], wall.vertices[j + 1]
-            local abs_x, abs_y = utils.int32(math.abs(x)), utils.int32(math.abs(y))
+            local abs_x, abs_y = utils.int_abs(x), utils.int_abs(y)
             if moved_to_stopped then
                 stopped_wall_radius = math.min(abs_x, abs_y, stopped_wall_radius)
             end
