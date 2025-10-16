@@ -229,7 +229,7 @@ function config.get(name)
 end
 
 ---get the definition of all the settings (default values, type, game versions it affects, ...)
----@param categorized boolean puts category names as keys of setting tables
+---@param categorized boolean? puts category names as keys of setting tables
 ---@return table
 function config.get_definitions(categorized)
     if categorized then

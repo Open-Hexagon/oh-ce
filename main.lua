@@ -138,18 +138,23 @@ function love.run()
                 local replay = Replay:new(replay_file)
                 local out_file_path = love.filesystem.getSaveDirectory() .. "/" .. replay_file .. ".part.mp4"
                 log("Got new #1 on '" .. replay.level_id .. "' from '" .. replay.pack_id .. "', rendering...")
-                local fn = async.busy_await(render_replay(game_handler, replay, out_file_path, replay.score), true)
                 local aborted = false
-                while fn() ~= 0 do
-                    local abort_hash = love.thread.getChannel("abort_replay_render"):pop()
-                    if abort_hash and abort_hash == replay_file:match(".*/(.*)") then
-                        aborted = true
-                        require("game_handler.video").stop()
-                        game_handler.stop()
-                        break
+                local success, error = pcall(function()
+                    local fn = async.busy_await(render_replay(game_handler, replay, out_file_path, replay.score), true)
+                    while fn() ~= 0 do
+                        local abort_hash = love.thread.getChannel("abort_replay_render"):pop()
+                        if abort_hash and abort_hash == replay_file:match(".*/(.*)") then
+                            aborted = true
+                            require("game_handler.video").stop()
+                            game_handler.stop()
+                            break
+                        end
                     end
-                end
-                if aborted then
+                end)
+                if aborted or not success then
+                    if error then
+                        log("Got error:", error)
+                    end
                     log("aborted rendering.")
                     love.filesystem.remove(replay_file .. ".part.mp4")
                 else
@@ -203,7 +208,7 @@ function love.run()
             love.event.pump()
             for event, t, err in love.event.poll() do
                 if event == "threaderror" then
-                    error("Thread error ("..tostring(t)..")\n\n"..err, 0)
+                    error("Thread error (" .. tostring(t) .. ")\n\n" .. err, 0)
                 end
             end
             local should_stop = #pending == 0
