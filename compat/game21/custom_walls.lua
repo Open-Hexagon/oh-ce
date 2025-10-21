@@ -37,7 +37,7 @@ cws.cw_createNoCollision = function()
     return create_cw(false, false)
 end
 local function process_handle(handle)
-    handle = handle + 1
+    handle = (handle or 0) + 1
     if custom_walls[handle] == nil then
         error("Trying to access invalid cw handle: " .. handle)
     end
