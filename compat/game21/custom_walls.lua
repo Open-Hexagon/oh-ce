@@ -42,6 +42,7 @@ local function with_handle(fn)
         handle = (handle or 0) + 1
         if custom_walls[handle] == nil then
             log("Trying to access invalid cw handle: " .. handle)
+            return
         end
         return fn(handle, ...)
     end
