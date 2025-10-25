@@ -67,10 +67,11 @@ local list = parser:command("list")
 list:command("players")
 list:command("packs")
 
-function commands.exit()
-    love.event.quit(0)
+function commands.exit(options)
+    love.event.quit(tonumber(options.code))
 end
-parser:command("exit")
+local exit = parser:command("exit")
+exit:argument("code"):default("0")
 
 local sock = assert(socket.bind("localhost", 50506))
 while true do
