@@ -130,7 +130,7 @@ function love.run()
         return function()
             run()
             assets.mirror_client.update()
-            assets.run_main_thread_task(true)
+            assets.run_main_thread_task()
             return event_loop()
         end
     end
