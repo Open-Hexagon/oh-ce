@@ -53,8 +53,20 @@ local function set_uniform(id_or_shader, uniform_type, name, value)
                     -- store uniforms when hot reloading
                     uniform_values[shader] = uniform_values[shader] or {}
                     uniform_values[shader][name] = uniform_values[shader][name] or {}
-                    uniform_values[shader][name].value = value
-                    uniform_values[shader][name].type = uniform_type
+                    local value_table = uniform_values[shader][name]
+                    value_table.type = uniform_type
+                    if type(value) == "table" then
+                        -- copy table values (since tables are reused when setting uniforms)
+                        if type(value_table.value) == "table" then
+                            for i = 1, math.max(#value, #value_table.value) do
+                                value_table.value[i] = value[i]
+                            end
+                        else
+                            value_table.value = { unpack(value) }
+                        end
+                    else
+                        value_table.value = value
+                    end
                 end
                 shader.shader:send(name, value)
                 shader.instance_shader:send(name, value)
