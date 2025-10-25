@@ -67,6 +67,20 @@ local list = parser:command("list")
 list:command("players")
 list:command("packs")
 
+function commands.reload(options)
+    if options.resource and options.recursive then
+        assets.index.prefix_changed(options.id)
+    elseif options.resource then
+        assets.index.changed(options.id)
+    else
+        assets.index.reload(options.id)
+    end
+end
+local reload = parser:command("reload")
+reload:argument("id", "asset or resource id")
+reload:flag("--resource", "indicates that the id argument is a resource id")
+reload:flag("--recursive", "reload all resource ids starting with the id argument")
+
 local exit_channel = love.thread.getChannel("scheduled_exit")
 function commands.exit(options)
     local code = tonumber(options.code)

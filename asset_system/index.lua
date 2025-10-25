@@ -360,6 +360,19 @@ function index.changed(...)
     process_unused_assets()
 end
 
+---mark all resources with an id that starts with a certain prefix as changed
+---can be useful for manually marking a whole recursive directory structure as changed
+---@param prefix string
+function index.prefix_changed(prefix)
+    local resources = {}
+    for resource_id in pairs(resource_watch_map) do
+        if resource_id:sub(1, #prefix) == prefix then
+            resources[#resources + 1] = resource_id
+        end
+    end
+    index.changed(unpack(resources))
+end
+
 local threadify = require("threadify")
 local watcher = threadify.require("asset_system.file_monitor", true)
 
