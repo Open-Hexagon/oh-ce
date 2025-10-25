@@ -20,7 +20,7 @@ elseif sys == "Linux" or sys == "Android" then
 end
 local success, clib = pcall(ffi.load, clib_path)
 if not success then
-    log(("Failed to load '%s'. The video encoder is unavailable."):format(clib_path))
+    log(("Failed to load '%s'. The video encoder is unavailable. Error: %s"):format(clib_path, clib))
 end
 
 local api = {}
