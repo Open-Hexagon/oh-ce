@@ -19,7 +19,7 @@ local function sodium_key_to_string(key)
     local string_key = ""
     for _ = 1, #key do
         local part
-        part, offset = love.data.unpack(">B", key, offset)
+        part, offset = love.data.unpack(">B", key, offset) --[[@as integer]]
         string_key = string_key .. part
     end
     return string_key
@@ -28,14 +28,14 @@ end
 local function read_uint64(data, offset)
     local part1, part2
     part1, offset = love.data.unpack(">I4", data, offset)
-    part2, offset = love.data.unpack(">I4", data, offset)
+    part2, offset = love.data.unpack(">I4", data, offset --[[@as integer]])
     return bit.lshift(part1 * 1ULL, 32) + part2 * 1ULL, offset
 end
 
 local function read_str(data, offset)
     local len
     len, offset = love.data.unpack(">I4", data, offset)
-    return love.data.unpack(">c" .. len, data, offset)
+    return love.data.unpack(">c" .. len, data, offset --[[@as integer]])
 end
 
 local function write_str(str)
@@ -92,6 +92,7 @@ local handlers = {
         end
     end,
     register = function(data, client)
+        ---@type number|string steam_id
         local steam_id, offset = read_uint64(data)
         steam_id = tostring(steam_id):sub(1, -4)
         local name, password_hash
@@ -113,6 +114,7 @@ local handlers = {
         end
     end,
     delete_account = function(data, client)
+        ---@type number|string steam_id
         local steam_id, offset = read_uint64(data)
         steam_id = tostring(steam_id):sub(1, -4)
         local password_hash = read_str(data, offset)
@@ -131,6 +133,7 @@ local handlers = {
         end
     end,
     login = function(data, client)
+        ---@type number|string steam_id
         local steam_id, offset = read_uint64(data)
         steam_id = tostring(steam_id):sub(1, -4)
         local name, password_hash
@@ -237,7 +240,8 @@ local handlers = {
         end
     end,
     logout = function(data, client)
-        local steam_id, offset = read_uint64(data)
+        ---@type number|string steam_id
+        local steam_id = read_uint64(data)
         steam_id = tostring(steam_id):sub(1, -4)
         if client.login_data then
             if database.user_exists_by_steam_id(steam_id) and client.login_data.steam_id == steam_id then
