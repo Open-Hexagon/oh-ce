@@ -45,14 +45,15 @@ if is_thread then
 
     local run = true
     local running_coroutines = {}
-    local update_fun, updater_count = require("update_functions")()
     while run do
         -- get command and update if necessary
         ---@type ThreadCommand?
         local cmd
-        if #running_coroutines > 0 or updater_count > 0 then
+        if #running_coroutines > 0 or api._threadify_update_loop then
             cmd = in_channel:demand(0.01)
-            update_fun()
+            if api._threadify_update_loop then
+                api._threadify_update_loop()
+            end
         else
             cmd = in_channel:demand()
         end

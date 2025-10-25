@@ -21,6 +21,10 @@ local index = threadify.require("asset_system.index")
 
 local watcher = {}
 
+function watcher._threadify_update_loop()
+    threadify.update()
+end
+
 local watching = false
 local path_filter = nil
 ---@type string[]

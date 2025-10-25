@@ -376,6 +376,10 @@ end
 local threadify = require("threadify")
 local watcher = threadify.require("asset_system.file_monitor", true)
 
+function index._threadify_update_loop()
+    threadify.update()
+end
+
 ---adds the specified file as dependency for the currently loading asset
 ---@param path string
 function index.watch_file(path)

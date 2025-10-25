@@ -110,23 +110,15 @@ end
 
 function async.busy_await(prom, in_coroutine_loop)
     -- this function is the only implementation specific one (assumes love and the asset system are used)
-    local assets
+    local assets = package.loaded.asset_system
+    local threadify = package.loaded.threadify
     local is_main = arg ~= nil
-    if is_main then
-        -- pcall, since we may be in require loop
-        local success, ret = pcall(require, "asset_system")
-        if success then
-            assets = ret
-        end
-    end
-    local update_fun = require("update_functions")()
     local exit
     while not prom.executed do
         -- main thread is the only one that needs to do this
         if is_main then
             love.event.pump()
             for name, a, b in love.event.poll() do
-                -- check exit conditions
                 if name == "quit" then
                     -- the actual exiting happens outside of this loop
                     -- the event is pushed again below so that a loop
@@ -136,11 +128,16 @@ function async.busy_await(prom, in_coroutine_loop)
                     error("Error in thread: " .. b)
                 end
             end
+            if assets then
+                assets.run_main_thread_task()
+            end
+        end
+        if threadify then
+            threadify.update()
         end
         if assets then
-            assets.run_main_thread_task()
+            assets.mirror_client.update()
         end
-        update_fun()
         if in_coroutine_loop then
             coroutine.yield()
         else

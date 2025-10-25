@@ -22,6 +22,10 @@ end
 local pack_map = {}
 local download = {}
 
+function download._threadify_update_loop()
+    assets.mirror_client.update()
+end
+
 local function api(suffix)
     local code, json_data = https.request(server_https_url .. url.escape(suffix))
     if code ~= 200 then

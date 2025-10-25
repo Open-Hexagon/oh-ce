@@ -8,6 +8,7 @@ local player_tracker = require("server.player_tracker")
 local database = require("server.database")
 local version = require("server.version")
 local buffer = require("string.buffer")
+local assets = require("asset_system")
 local socket = require("socket")
 
 database.set_identity(0)
@@ -198,6 +199,7 @@ end)
 
 if is_thread then
     while true do
+        assets.mirror_client.update()
         run_function()
     end
 end
