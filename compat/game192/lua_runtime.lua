@@ -131,6 +131,7 @@ local key_count = 0
 local block_threshold = 1000
 
 function lua_runtime.init_env(game, public)
+    file_cache = {} -- in case lua files changed since last execution
     local pack = game.pack
     lua_runtime.env = {
         os = {

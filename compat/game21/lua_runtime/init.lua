@@ -22,6 +22,7 @@ function lua_runtime.error(msg)
 end
 
 function lua_runtime.init_env(game, public)
+    file_cache = {} -- in case lua files changed since last execution
     lua_runtime.env = {
         next = next,
         error = error,
