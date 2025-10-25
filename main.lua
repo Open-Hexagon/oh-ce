@@ -6,6 +6,7 @@ local channel_callbacks = require("channel_callbacks")
 local audio = require("audio")
 local assets = require("asset_system")
 local video_encoder = require("game_handler.video")
+local player_tracker = require("server.player_tracker")
 
 local function add_require_path(path)
     love.filesystem.setRequirePath(love.filesystem.getRequirePath() .. ";" .. path)
@@ -13,6 +14,24 @@ end
 
 local function add_c_require_path(path)
     love.filesystem.setCRequirePath(love.filesystem.getCRequirePath() .. ";" .. path)
+end
+
+local exit_channel = love.thread.getChannel("scheduled_exit")
+
+local function server_exit()
+    -- exit once nothing is happening if exit was scheduled
+    local scheduled_exit = exit_channel:peek()
+    if scheduled_exit then
+        local exit = scheduled_exit
+        if next(player_tracker.get()) ~= nil then
+            exit = nil -- players are still online
+        elseif love.thread.getChannel("game_thread_running"):peek() then
+            exit = nil -- game thread is still processing a replay
+        end
+        if exit ~= nil then
+            love.event.quit(exit)
+        end
+    end
 end
 
 local function event_loop(config, game_handler, ui)
@@ -131,6 +150,7 @@ function love.run()
             run()
             assets.mirror_client.update()
             assets.run_main_thread_task()
+            server_exit()
             return event_loop()
         end
     end
@@ -178,6 +198,7 @@ function love.run()
                     end
                 end
             end
+            server_exit()
             return event_loop()
         end
     end
