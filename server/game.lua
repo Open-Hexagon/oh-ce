@@ -1,33 +1,13 @@
 local log = require("log")(...)
-local update_functions = require("update_functions")
 local game = {}
 local thread = love.thread.newThread("server/game_thread.lua")
 
 -- this whole module is technically obsolete and could be replaced with
 -- the asset system and threadify, but I have not gotten around to it
 
-local function wait_for_value(channel_name)
-    local channel = love.thread.getChannel(channel_name)
-    local update = update_functions()
-    local start = love.timer.getTime()
-    local value
-    repeat
-        update()
-        value = channel:pop()
-        love.timer.sleep(0.01)
-        if love.timer.getTime() - start > 10 then
-            error("failed getting level data from thread")
-        end
-    until value
-    return value
-end
-
 function game.init(render_top_scores)
     thread:start("server.game_thread", true)
     love.thread.getChannel("game_commands"):push({ "set_render_top_scores", render_top_scores })
-    love.thread.getChannel("game_commands"):push({ "get_levels21" })
-    game.level_validators = wait_for_value("ranked_levels")
-    game.levels = wait_for_value("ranked_levels")
 end
 
 function game.verify_replay_and_save_score(compressed_replay, time, steam_id)

@@ -35,4 +35,32 @@ function loaders.all_game_sounds()
     return result
 end
 
+function loaders.steam_level_validators()
+    local packs = index.local_request("pack.load_register")
+    local level_validators = {
+        list = {},
+        set = {},
+        to_id = {},
+    }
+    for j = 1, #packs do
+        local pack = packs[j]
+        if pack.game_version == 21 then
+            for k = 1, pack.level_count do
+                local level = pack.levels[k]
+                for i = 1, #level.options.difficulty_mult do
+                    local validator = pack.id .. "_" .. level.id .. "_m_" .. level.options.difficulty_mult[i]
+                    level_validators.list[#level_validators.list + 1] = validator
+                    level_validators.set[validator] = true
+                    level_validators.to_id[validator] = {
+                        pack = pack.id,
+                        level = level.id,
+                        difficulty_mult = level.options.difficulty_mult[i],
+                    }
+                end
+            end
+        end
+    end
+    return level_validators
+end
+
 return loaders

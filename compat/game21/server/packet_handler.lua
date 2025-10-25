@@ -6,12 +6,12 @@ local version = require("server.version")
 local sodium = require("extlibs.luasodium")
 local game = require("server.game")
 local player_tracker = require("server.player_tracker")
+local async = require("async")
+local assets = require("asset_system")
 require("love.timer")
 
 local packet_handler = {}
 local server_pk, server_sk = sodium.crypto_kx_keypair()
-local level_validator_map = {}
-local level_validator_to_id = {}
 local database
 
 local function sodium_key_to_string(key)
@@ -175,9 +175,9 @@ local handlers = {
         if client.login_data and client.login_data.login_token == login_token then
             if client.login_data.ready then
                 local level = read_str(data, 9)
-                if level_validator_map[level] then
+                if assets.mirror.steam_level_validators.set[level] then
                     local packet_data = write_str(level)
-                    local actual_level = level_validator_to_id[level]
+                    local actual_level = assets.mirror.steam_level_validators.to_id[level]
                     if actual_level.pack == nil or actual_level.level == nil or actual_level.difficulty_mult == nil then
                         log("Unsupported level: " .. level)
                     else
@@ -220,6 +220,7 @@ local handlers = {
     request_server_status = function(data, client)
         local login_token = data
         if client.login_data and client.login_data.login_token == login_token then
+            local level_validators = assets.mirror.steam_level_validators.list
             local packet_data = love.data.pack(
                 "string",
                 ">Bi4i4i4I8",
@@ -227,10 +228,10 @@ local handlers = {
                 version.COMPAT_GAME_VERSION[1],
                 version.COMPAT_GAME_VERSION[2],
                 version.COMPAT_GAME_VERSION[3],
-                #game.level_validators
+                #level_validators
             )
-            for i = 1, #game.level_validators do
-                packet_data = packet_data .. write_str(game.level_validators[i])
+            for i = 1, #level_validators do
+                packet_data = packet_data .. write_str(level_validators[i])
             end
             send_encrypted(client, "server_status", packet_data)
         end
@@ -306,15 +307,8 @@ end
 
 function packet_handler.init(db, render_top_scores)
     database = db
+    async.busy_await(assets.index.request("steam_level_validators", "compat.steam_level_validators"))
     game.init(render_top_scores)
-    for i = 1, #game.level_validators do
-        level_validator_map[game.level_validators[i]] = true
-        level_validator_to_id[game.level_validators[i]] = {
-            pack = game.levels[i * 3 - 2],
-            level = game.levels[i * 3 - 1],
-            difficulty_mult = game.levels[i * 3],
-        }
-    end
 end
 
 function packet_handler.stop_game()

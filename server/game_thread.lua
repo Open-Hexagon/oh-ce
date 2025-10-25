@@ -163,32 +163,6 @@ function api.verify_replay(compressed_replay, time, steam_id)
     end
 end
 
-function api.get_levels21()
-    local level_validators = {}
-    local levels = {}
-    local packs = game_handler.get_packs()
-    for j = 1, #packs do
-        local pack = packs[j]
-        if pack.game_version == 21 then
-            for k = 1, pack.level_count do
-                local level = pack.levels[k]
-                for i = 1, #level.options.difficulty_mult do
-                    level_validators[#level_validators + 1] = pack.id
-                        .. "_"
-                        .. level.id
-                        .. "_m_"
-                        .. level.options.difficulty_mult[i]
-                    levels[#levels + 1] = pack.id
-                    levels[#levels + 1] = level.id
-                    levels[#levels + 1] = level.options.difficulty_mult[i]
-                end
-            end
-        end
-    end
-    love.thread.getChannel("ranked_levels"):push(level_validators)
-    love.thread.getChannel("ranked_levels"):push(levels)
-end
-
 function api.set_render_top_scores(bool)
     render_top_scores = bool
 end
