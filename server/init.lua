@@ -7,6 +7,7 @@ local packet_types21 = require("compat.game21.server.packet_types")
 local player_tracker = require("server.player_tracker")
 local database = require("server.database")
 local version = require("server.version")
+local buffer = require("string.buffer")
 local socket = require("socket")
 
 database.set_identity(0)
@@ -98,8 +99,6 @@ love.thread.newThread("server/control.lua"):start()
 local run_function = server_get_run_function("0.0.0.0", 50505, function(client)
     local client_ip, client_port = client:getpeername()
     local name = client_ip .. ":" .. client_port
-    local pending_packet_size
-    local data = ""
     local client_data = {
         send_packet21 = function(packet_type, contents)
             contents = contents or ""
@@ -158,18 +157,20 @@ local run_function = server_get_run_function("0.0.0.0", 50505, function(client)
         end,
     }
     log("Connection from " .. name)
+    local data = buffer.new()
+    local pending_packet_size
     local connected = true
     while connected do
         local chunk, reason = client:receive(1)
         if chunk then
-            data = data .. chunk
+            data:put(chunk)
             local reading = true
             while reading do
                 reading = false
                 if pending_packet_size then
                     if #data >= pending_packet_size then
                         reading = true
-                        local err = process_packet(data:sub(1, pending_packet_size), client_data)
+                        local err = process_packet(data:get(pending_packet_size), client_data)
                         if err then
                             -- client sends wrong packets (e.g. wrong protocol version)
                             log("Closing connection to " .. name .. ". Reason: " .. err)
@@ -177,13 +178,11 @@ local run_function = server_get_run_function("0.0.0.0", 50505, function(client)
                             client:close()
                             return
                         end
-                        data = data:sub(pending_packet_size + 1)
                         pending_packet_size = nil
                     end
                 elseif #data >= 4 then
                     reading = true
-                    pending_packet_size = love.data.unpack(">I4", data)
-                    data = data:sub(5)
+                    pending_packet_size = love.data.unpack(">I4", data:get(4))
                 end
             end
         end
