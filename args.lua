@@ -28,9 +28,10 @@ parser
     :args(2)
     :count("*")
     :argname({ "<192|20|21>", "<path>" })
+parser:flag("--extract-working-replays", "Extracts all replays from submitted scores that are working.")
 
 local ret = parser:parse(love.arg.parseGameArguments(arg))
-if (ret.server and not ret.render) or ret.migrate then
+if (ret.server and not ret.render) or ret.migrate or ret.extract_working_replays then
     ret.headless = true
 end
 ret.is_main_headless = ret.headless

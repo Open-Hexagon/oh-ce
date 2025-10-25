@@ -1,6 +1,5 @@
 local msgpack = require("extlibs.msgpack.msgpack")
 local old_replay = require("compat.game21.replay")
-local log = require("log")(...)
 
 ---@class Replay
 ---@field data table

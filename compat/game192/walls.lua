@@ -21,10 +21,10 @@ function module.set_level_data(data, dm)
 end
 
 -- need a custom function to replicate stupid conversion causing fractals to work
+local to_radians_div = utils.float_round(57.3)
 local function getOrbit(degrees, distance)
-    degrees = utils.float_round(degrees)
-    return utils.float_round(math.cos((degrees / 57.3)) * distance),
-        utils.float_round(math.sin((degrees / 57.3)) * distance)
+    return utils.float_round(math.cos((degrees / to_radians_div)) * distance),
+        utils.float_round(math.sin((degrees / to_radians_div)) * distance)
 end
 
 function module.size()
@@ -141,7 +141,7 @@ function module.update(frametime, radius)
         local points_out_of_bg = 0
         for j = 1, 8, 2 do
             local x, y = wall.vertices[j], wall.vertices[j + 1]
-            local abs_x, abs_y = math.abs(x), math.abs(y)
+            local abs_x, abs_y = utils.int_abs(x), utils.int_abs(y)
             if moved_to_stopped then
                 stopped_wall_radius = math.min(abs_x, abs_y, stopped_wall_radius)
             end

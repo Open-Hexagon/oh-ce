@@ -32,6 +32,10 @@ local level_data_types = {
     beatpulse_max = utils.float_round,
     beatpulse_delay_max = utils.float_round,
     radius_min = utils.float_round,
+    wall_angle_left = utils.float_round,
+    wall_angle_right = utils.float_round,
+    wall_skew_left = utils.float_round,
+    wall_skew_right = utils.float_round,
 }
 local default_values = {
     pulse_min = 75,

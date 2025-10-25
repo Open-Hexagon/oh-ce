@@ -36,6 +36,7 @@ return function(game)
     end
     env.a_syncMusicToDM = function(value)
         level_status.sync_music_to_dm = value
+        public.refresh_music_pitch()
     end
     env.a_setMusicPitch = function(pitch)
         level_status.music_pitch = pitch

@@ -350,6 +350,10 @@ function api.delete(steam_id)
     database:delete("users", { where = { steam_id = steam_id } })
 end
 
+function api.get_all_scores()
+    return database:select("scores")
+end
+
 if as_thread then
     database:open()
     local run = true

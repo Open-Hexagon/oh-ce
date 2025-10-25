@@ -13,6 +13,8 @@ local database, replay_path
 database = require("server.database")
 database.set_identity(1)
 replay_path = database.get_replay_path()
+local failed_replay_path = "server/failed_replays/"
+love.filesystem.createDirectory(failed_replay_path)
 
 local api = {}
 
@@ -40,7 +42,7 @@ local function get_replay_save_path(hash)
     return path, hash
 end
 
-function api.verify_replay(compressed_replay, time, steam_id)
+function api.verify_replay(compressed_replay, time, steam_id, test_id)
     local start = love.timer.getTime()
     local decoded_replay = replay:new_from_data(compressed_replay)
     local around_time = 0
@@ -83,6 +85,9 @@ function api.verify_replay(compressed_replay, time, steam_id)
     end)
     if exceeded_max_processing_time then
         log("no player death 60s after end of input data. discarding replay.")
+        if test_id then
+            love.thread.getChannel("verification_results_" .. test_id):push(false)
+        end
         return
     end
     local score, is_custom_score = game_handler.get_score()
@@ -98,61 +103,65 @@ function api.verify_replay(compressed_replay, time, steam_id)
     if is_custom_score and decoded_replay.game_version == 21 then
         decoded_replay.score = decoded_replay.score * 60
     end
-    log(
-        "Finished running replay. compare score: "
-            .. compare_score
-            .. " timed score: "
-            .. timed_score
-            .. "s replay score: "
-            .. decoded_replay.score
-            .. " save score: "
-            .. score
-            .. " real time: "
-            .. time
-            .. "s"
-    )
+    local time_string = "compare score: "
+        .. compare_score
+        .. " timed score: "
+        .. timed_score
+        .. "s replay score: "
+        .. decoded_replay.score
+        .. " save score: "
+        .. score
+        .. " real time: "
+        .. time
+        .. "s"
+    log("Finished running replay on", decoded_replay.pack_id, decoded_replay.level_id)
+    log("Times: " .. time_string)
+    local verified = false
     if
         compare_score + score_tolerance > decoded_replay.score
         and compare_score - score_tolerance < decoded_replay.score
     then
         if time + time_tolerance > timed_score and time - time_tolerance < timed_score then
-            log("replay verified, score: " .. score)
-            local hash, data = decoded_replay:get_hash()
-            local packed_level_settings = msgpack.pack(decoded_replay.data.level_settings)
-            local replay_save_path, replay_hash = get_replay_save_path(hash)
-            if
-                database.save_score(
-                    time,
-                    steam_id,
-                    decoded_replay.pack_id,
-                    decoded_replay.level_id,
-                    packed_level_settings,
-                    score,
-                    replay_hash
-                )
-            then
-                decoded_replay:save(replay_save_path, data)
-                log("Saved new score")
-                local position = database.get_score_position(
-                    decoded_replay.pack_id,
-                    decoded_replay.level_id,
-                    packed_level_settings,
-                    steam_id
-                )
-                love.thread.getChannel("new_scores"):push({
-                    position = position,
-                    value = score,
-                    replay_hash = replay_hash,
-                    user_name = (database.get_user_by_steam_id(steam_id) or { username = "deleted user" }).username,
-                    timestamp = os.time(),
-                    level_options = decoded_replay.data.level_settings,
-                    level = decoded_replay.level_id,
-                    pack = decoded_replay.pack_id,
-                })
-                if render_top_scores and position == 1 then
-                    local channel = love.thread.getChannel("replays_to_render")
-                    channel:push(replay_save_path)
-                    log(channel:getCount() .. " replays queued for rendering.")
+            verified = true
+            if not test_id then
+                log("replay verified, score: " .. score)
+                local hash, data = decoded_replay:get_hash()
+                local packed_level_settings = msgpack.pack(decoded_replay.data.level_settings)
+                local replay_save_path, replay_hash = get_replay_save_path(hash)
+                if
+                    database.save_score(
+                        time,
+                        steam_id,
+                        decoded_replay.pack_id,
+                        decoded_replay.level_id,
+                        packed_level_settings,
+                        score,
+                        replay_hash
+                    )
+                then
+                    decoded_replay:save(replay_save_path, data)
+                    log("Saved new score")
+                    local position = database.get_score_position(
+                        decoded_replay.pack_id,
+                        decoded_replay.level_id,
+                        packed_level_settings,
+                        steam_id
+                    )
+                    love.thread.getChannel("new_scores"):push({
+                        position = position,
+                        value = score,
+                        replay_hash = replay_hash,
+                        user_name = (database.get_user_by_steam_id(steam_id) or { username = "deleted user" }).username,
+                        timestamp = os.time(),
+                        level_options = decoded_replay.data.level_settings,
+                        level = decoded_replay.level_id,
+                        pack = decoded_replay.pack_id,
+                    })
+                    if render_top_scores and position == 1 then
+                        local channel = love.thread.getChannel("replays_to_render")
+                        channel:push(replay_save_path)
+                        log(channel:getCount() .. " replays queued for rendering.")
+                    end
                 end
             end
         else
@@ -160,6 +169,13 @@ function api.verify_replay(compressed_replay, time, steam_id)
         end
     else
         log("The replay's score of " .. decoded_replay.score .. " does not match the actual score of " .. compare_score)
+    end
+    if test_id then
+        love.thread.getChannel("verification_results_" .. test_id):push(verified)
+    elseif not verified then
+        log("Saving failed replay with real time.")
+        time_string = time_string:gsub(" ", "_"):gsub(":", "") -- remove special characters
+        decoded_replay:save(failed_replay_path .. love.timer.getTime() .. "_steam_" .. steam_id .. "_" .. time_string)
     end
 end
 
@@ -177,10 +193,13 @@ local function set_status(running)
 end
 
 local run = true
+local channel = love.thread.getChannel("game_commands")
 while run do
-    local cmd = love.thread.getChannel("game_commands"):demand(1)
+    local cmd = channel:demand(1)
+    log("game thread is alive and ready")
     assets.mirror_client.update()
     if cmd then
+        log("processing game command.", channel:getCount(), "left.")
         if cmd[1] == "stop" then
             run = false
         else
@@ -191,8 +210,14 @@ while run do
                 fn(unpack(cmd))
             end, function(err)
                 log("Error while verifying replay:\n", err)
+                local test_id = cmd[4]
+                if test_id then
+                    love.thread.getChannel("verification_results_" .. test_id):push(false)
+                end
             end)
             set_status(false)
         end
+        log("done.")
     end
 end
+log("quitting")

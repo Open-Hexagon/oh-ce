@@ -118,21 +118,22 @@ function input.get(input_name, add_ui_button)
         local scheme = inputs[i]
         for j = 1, #scheme.ids do
             local key = scheme.scheme .. "_" .. scheme.ids[j]
+            local state
             if replaying then
-                local state = input_state[key] or false
+                state = input_state[key] or false
                 if add_ui_button then
                     ui_button.real_input_state = state
                 end
-                return state
-            end
-            local state = schemes[scheme.scheme].is_down(scheme.ids[j])
-            if recording then
-                if input.replay == nil then
-                    error("attempted to record input without active replay")
-                end
-                if input_state[key] ~= state then
-                    input_state[key] = state
-                    input.replay:record_input(key, state, time)
+            else
+                state = schemes[scheme.scheme].is_down(scheme.ids[j])
+                if recording then
+                    if input.replay == nil then
+                        error("attempted to record input without active replay")
+                    end
+                    if input_state[key] ~= state then
+                        input_state[key] = state
+                        input.replay:record_input(key, state, time)
+                    end
                 end
             end
             ret = ret or state

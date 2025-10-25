@@ -1,3 +1,4 @@
+local log = require("log")(...)
 local extra_math = require("compat.game21.math")
 local custom_walls = {}
 local free_handles = {}
@@ -36,115 +37,102 @@ end
 cws.cw_createNoCollision = function()
     return create_cw(false, false)
 end
-local function process_handle(handle)
-    handle = handle + 1
-    if custom_walls[handle] == nil then
-        error("Trying to access invalid cw handle: " .. handle)
+local function with_handle(fn)
+    return function(handle, ...)
+        handle = (handle or 0) + 1
+        if custom_walls[handle] == nil then
+            log("Trying to access invalid cw handle: " .. handle)
+            return
+        end
+        return fn(handle, ...)
     end
-    return handle
 end
-cws.cw_destroy = function(handle)
-    handle = process_handle(handle)
+cws.cw_destroy = with_handle(function(handle)
     custom_walls[handle].visible = false
     free_handles[#free_handles + 1] = handle
-end
-cws.cw_setVertexPos = function(handle, vertex, x, y)
-    handle = process_handle(handle)
-    custom_walls[handle].vertices[vertex * 2 + 1] = x
-    custom_walls[handle].vertices[vertex * 2 + 2] = y
-end
-cws.cw_moveVertexPos = function(handle, vertex, offset_x, offset_y)
-    handle = process_handle(handle)
-    custom_walls[handle].vertices[vertex * 2 + 1] = custom_walls[handle].vertices[vertex * 2 + 1] + offset_x
-    custom_walls[handle].vertices[vertex * 2 + 2] = custom_walls[handle].vertices[vertex * 2 + 2] + offset_y
-end
-cws.cw_moveVertexPos4Same = function(handle, offset_x, offset_y)
-    handle = process_handle(handle)
-    custom_walls[handle].vertices[1] = custom_walls[handle].vertices[1] + offset_x
-    custom_walls[handle].vertices[2] = custom_walls[handle].vertices[2] + offset_y
-    custom_walls[handle].vertices[3] = custom_walls[handle].vertices[3] + offset_x
-    custom_walls[handle].vertices[4] = custom_walls[handle].vertices[4] + offset_y
-    custom_walls[handle].vertices[5] = custom_walls[handle].vertices[5] + offset_x
-    custom_walls[handle].vertices[6] = custom_walls[handle].vertices[6] + offset_y
-    custom_walls[handle].vertices[7] = custom_walls[handle].vertices[7] + offset_x
-    custom_walls[handle].vertices[8] = custom_walls[handle].vertices[8] + offset_y
-end
-cws.cw_setVertexColor = function(handle, vertex, r, g, b, a)
-    handle = process_handle(handle)
-    custom_walls[handle].colors[vertex * 4 + 1] = r
-    custom_walls[handle].colors[vertex * 4 + 2] = g
-    custom_walls[handle].colors[vertex * 4 + 3] = b
-    custom_walls[handle].colors[vertex * 4 + 4] = a
-end
-cws.cw_setVertexPos4 = function(handle, x0, y0, x1, y1, x2, y2, x3, y3)
-    handle = process_handle(handle)
-    custom_walls[handle].vertices[1] = x0
-    custom_walls[handle].vertices[2] = y0
-    custom_walls[handle].vertices[3] = x1
-    custom_walls[handle].vertices[4] = y1
-    custom_walls[handle].vertices[5] = x2
-    custom_walls[handle].vertices[6] = y2
-    custom_walls[handle].vertices[7] = x3
-    custom_walls[handle].vertices[8] = y3
-end
-cws.cw_setVertexColor4 = function(handle, r0, g0, b0, a0, r1, g1, b1, a1, r2, g2, b2, a2, r3, g3, b3, a3)
-    handle = process_handle(handle)
-    custom_walls[handle].colors[1] = r0
-    custom_walls[handle].colors[2] = g0
-    custom_walls[handle].colors[3] = b0
-    custom_walls[handle].colors[4] = a0
-    custom_walls[handle].colors[5] = r1
-    custom_walls[handle].colors[6] = g1
-    custom_walls[handle].colors[7] = b1
-    custom_walls[handle].colors[8] = a1
-    custom_walls[handle].colors[9] = r2
-    custom_walls[handle].colors[10] = g2
-    custom_walls[handle].colors[11] = b2
-    custom_walls[handle].colors[12] = a2
-    custom_walls[handle].colors[13] = r3
-    custom_walls[handle].colors[14] = g3
-    custom_walls[handle].colors[15] = b3
-    custom_walls[handle].colors[16] = a3
-end
-cws.cw_setVertexColor4Same = function(handle, r, g, b, a)
-    handle = process_handle(handle)
+end)
+cws.cw_setVertexPos = with_handle(function(handle, vertex, x, y)
+    custom_walls[handle].vertices[vertex * 2 + 1] = x or 0
+    custom_walls[handle].vertices[vertex * 2 + 2] = y or 0
+end)
+cws.cw_moveVertexPos = with_handle(function(handle, vertex, offset_x, offset_y)
+    custom_walls[handle].vertices[vertex * 2 + 1] = custom_walls[handle].vertices[vertex * 2 + 1] + (offset_x or 0)
+    custom_walls[handle].vertices[vertex * 2 + 2] = custom_walls[handle].vertices[vertex * 2 + 2] + (offset_y or 0)
+end)
+cws.cw_moveVertexPos4Same = with_handle(function(handle, offset_x, offset_y)
+    custom_walls[handle].vertices[1] = custom_walls[handle].vertices[1] + (offset_x or 0)
+    custom_walls[handle].vertices[2] = custom_walls[handle].vertices[2] + (offset_y or 0)
+    custom_walls[handle].vertices[3] = custom_walls[handle].vertices[3] + (offset_x or 0)
+    custom_walls[handle].vertices[4] = custom_walls[handle].vertices[4] + (offset_y or 0)
+    custom_walls[handle].vertices[5] = custom_walls[handle].vertices[5] + (offset_x or 0)
+    custom_walls[handle].vertices[6] = custom_walls[handle].vertices[6] + (offset_y or 0)
+    custom_walls[handle].vertices[7] = custom_walls[handle].vertices[7] + (offset_x or 0)
+    custom_walls[handle].vertices[8] = custom_walls[handle].vertices[8] + (offset_y or 0)
+end)
+cws.cw_setVertexColor = with_handle(function(handle, vertex, r, g, b, a)
+    custom_walls[handle].colors[vertex * 4 + 1] = r or 0
+    custom_walls[handle].colors[vertex * 4 + 2] = g or 0
+    custom_walls[handle].colors[vertex * 4 + 3] = b or 0
+    custom_walls[handle].colors[vertex * 4 + 4] = a or 0
+end)
+cws.cw_setVertexPos4 = with_handle(function(handle, x0, y0, x1, y1, x2, y2, x3, y3)
+    custom_walls[handle].vertices[1] = x0 or 0
+    custom_walls[handle].vertices[2] = y0 or 0
+    custom_walls[handle].vertices[3] = x1 or 0
+    custom_walls[handle].vertices[4] = y1 or 0
+    custom_walls[handle].vertices[5] = x2 or 0
+    custom_walls[handle].vertices[6] = y2 or 0
+    custom_walls[handle].vertices[7] = x3 or 0
+    custom_walls[handle].vertices[8] = y3 or 0
+end)
+cws.cw_setVertexColor4 = with_handle(function(handle, r0, g0, b0, a0, r1, g1, b1, a1, r2, g2, b2, a2, r3, g3, b3, a3)
+    custom_walls[handle].colors[1] = r0 or 0
+    custom_walls[handle].colors[2] = g0 or 0
+    custom_walls[handle].colors[3] = b0 or 0
+    custom_walls[handle].colors[4] = a0 or 0
+    custom_walls[handle].colors[5] = r1 or 0
+    custom_walls[handle].colors[6] = g1 or 0
+    custom_walls[handle].colors[7] = b1 or 0
+    custom_walls[handle].colors[8] = a1 or 0
+    custom_walls[handle].colors[9] = r2 or 0
+    custom_walls[handle].colors[10] = g2 or 0
+    custom_walls[handle].colors[11] = b2 or 0
+    custom_walls[handle].colors[12] = a2 or 0
+    custom_walls[handle].colors[13] = r3 or 0
+    custom_walls[handle].colors[14] = g3 or 0
+    custom_walls[handle].colors[15] = b3 or 0
+    custom_walls[handle].colors[16] = a3 or 0
+end)
+cws.cw_setVertexColor4Same = with_handle(function(handle, r, g, b, a)
     for i = 0, 3 do
-        custom_walls[handle].colors[i * 4 + 1] = r
-        custom_walls[handle].colors[i * 4 + 2] = g
-        custom_walls[handle].colors[i * 4 + 3] = b
-        custom_walls[handle].colors[i * 4 + 4] = a
+        custom_walls[handle].colors[i * 4 + 1] = r or 0
+        custom_walls[handle].colors[i * 4 + 2] = g or 0
+        custom_walls[handle].colors[i * 4 + 3] = b or 0
+        custom_walls[handle].colors[i * 4 + 4] = a or 0
     end
-end
-cws.cw_setCollision = function(handle, collision)
-    handle = process_handle(handle)
+end)
+cws.cw_setCollision = with_handle(function(handle, collision)
     custom_walls[handle].collision = collision
-end
-cws.cw_setDeadly = function(handle, deadly)
-    handle = process_handle(handle)
+end)
+cws.cw_setDeadly = with_handle(function(handle, deadly)
     custom_walls[handle].deadly = deadly
-end
-cws.cw_setKillingSide = function(handle, side)
-    handle = process_handle(handle)
+end)
+cws.cw_setKillingSide = with_handle(function(handle, side)
     custom_walls[handle].killing_side = side
-end
-cws.cw_getCollision = function(handle)
-    handle = process_handle(handle)
+end)
+cws.cw_getCollision = with_handle(function(handle)
     return custom_walls[handle].collision
-end
-cws.cw_getDeadly = function(handle)
-    handle = process_handle(handle)
+end)
+cws.cw_getDeadly = with_handle(function(handle)
     return custom_walls[handle].deadly
-end
-cws.cw_getKillingSide = function(handle)
-    handle = process_handle(handle)
+end)
+cws.cw_getKillingSide = with_handle(function(handle)
     return custom_walls[handle].killing_side
-end
-cws.cw_getVertexPos = function(handle, vertex)
-    handle = process_handle(handle)
+end)
+cws.cw_getVertexPos = with_handle(function(handle, vertex)
     return custom_walls[handle].vertices[vertex * 2 + 1], custom_walls[handle].vertices[vertex * 2 + 2]
-end
-cws.cw_getVertexPos4 = function(handle)
-    handle = process_handle(handle)
+end)
+cws.cw_getVertexPos4 = with_handle(function(handle)
     return custom_walls[handle].vertices[1],
         custom_walls[handle].vertices[2],
         custom_walls[handle].vertices[3],
@@ -153,7 +141,7 @@ cws.cw_getVertexPos4 = function(handle)
         custom_walls[handle].vertices[6],
         custom_walls[handle].vertices[7],
         custom_walls[handle].vertices[8]
-end
+end)
 cws.cw_clear = function()
     custom_walls = {}
     free_handles = {}
