@@ -67,11 +67,23 @@ local list = parser:command("list")
 list:command("players")
 list:command("packs")
 
+local exit_channel = love.thread.getChannel("scheduled_exit")
 function commands.exit(options)
-    love.event.quit(tonumber(options.code))
+    local code = tonumber(options.code)
+    if options.unschedule then
+        exit_channel:clear()
+    elseif options.schedule then
+        exit_channel:push(code)
+    else
+        love.event.push("quit", code)
+    end
 end
 local exit = parser:command("exit")
 exit:argument("code"):default("0")
+exit:mutex(
+    exit:flag("--schedule", "schedules exit until nothing is happening"),
+    exit:flag("--unschedule", "unschedules pending exit")
+)
 
 local sock = assert(socket.bind("localhost", 50506))
 while true do
