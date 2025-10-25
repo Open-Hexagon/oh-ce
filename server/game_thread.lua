@@ -167,6 +167,15 @@ function api.set_render_top_scores(bool)
     render_top_scores = bool
 end
 
+local status_channel = love.thread.getChannel("game_thread_running")
+
+local function set_status(running)
+    status_channel:performAtomic(function()
+        status_channel:clear()
+        status_channel:push(running)
+    end)
+end
+
 local run = true
 while run do
     local cmd = love.thread.getChannel("game_commands"):demand(1)
@@ -175,6 +184,7 @@ while run do
         if cmd[1] == "stop" then
             run = false
         else
+            set_status(true)
             xpcall(function()
                 local fn = api[cmd[1]]
                 table.remove(cmd, 1)
@@ -182,6 +192,7 @@ while run do
             end, function(err)
                 log("Error while verifying replay:\n", err)
             end)
+            set_status(false)
         end
     end
 end
