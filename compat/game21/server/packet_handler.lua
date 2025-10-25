@@ -5,6 +5,7 @@ local packet_types = require("compat.game21.server.packet_types")
 local version = require("server.version")
 local sodium = require("extlibs.luasodium")
 local game = require("server.game")
+local player_tracker = require("server.player_tracker")
 require("love.timer")
 
 local packet_handler = {}
@@ -162,6 +163,7 @@ local handlers = {
                     }
                     log("Successfully logged in user '" .. name .. "'")
                     send_encrypted(client, "login_success", login_token .. write_str(name))
+                    player_tracker.add(client, name, steam_id)
                 end
             else
                 send_fail("No user matching '" .. steam_id .. "' and '" .. name .. "' registered")
@@ -241,6 +243,7 @@ local handlers = {
                 database.remove_login_tokens(client.login_data.steam_id)
                 client.login_data = nil
                 send_encrypted(client, "logout_success")
+                player_tracker.remove(client)
             else
                 send_encrypted(client, "logout_failure")
             end

@@ -4,6 +4,7 @@ start_web = start_web or require("args").web
 local log = require("log")(log_name)
 local packet_handler21 = require("compat.game21.server.packet_handler")
 local packet_types21 = require("compat.game21.server.packet_types")
+local player_tracker = require("server.player_tracker")
 local database = require("server.database")
 local version = require("server.version")
 local socket = require("socket")
@@ -92,6 +93,7 @@ packet_handler21.init(database, is_thread)
 if start_web then
     web_thread:start()
 end
+love.thread.newThread("server/control.lua"):start()
 
 local run_function = server_get_run_function("0.0.0.0", 50505, function(client)
     local client_ip, client_port = client:getpeername()
@@ -170,8 +172,9 @@ local run_function = server_get_run_function("0.0.0.0", 50505, function(client)
                         local err = process_packet(data:sub(1, pending_packet_size), client_data)
                         if err then
                             -- client sends wrong packets (e.g. wrong protocol version)
-                            client:close()
                             log("Closing connection to " .. name .. ". Reason: " .. err)
+                            player_tracker.remove(client_data)
+                            client:close()
                             return
                         end
                         data = data:sub(pending_packet_size + 1)
@@ -186,6 +189,7 @@ local run_function = server_get_run_function("0.0.0.0", 50505, function(client)
         end
         if reason == "closed" then
             log("Client " .. name .. " disconnected")
+            player_tracker.remove(client_data)
             client:close()
             return
         end
