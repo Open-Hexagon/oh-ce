@@ -7,6 +7,7 @@ local utils = require("asset_system.loaders.utils")
 local platform = require("platform")
 local args = require("args")
 if not args.is_main_headless then
+    require("love.sound")
     require("love.graphics")
 end
 
@@ -26,6 +27,9 @@ function compat_loaders.build_pack_id21(info, include_version)
 end
 
 function compat_loaders.sound_data(path_or_content, use_vfs)
+    if args.is_main_headless then
+        return
+    end
     if use_vfs then
         error("loading sounds from virtual filesystem is not supported.")
     end
