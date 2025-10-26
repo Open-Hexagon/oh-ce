@@ -446,8 +446,6 @@ function compat_loaders.full_load(version, id)
 
     pack.music =
         index.local_request("pack.compat.load_file_list", "Music", ".json", "pack.compat.music", "id", version, name)
-    pack.sounds =
-        index.local_request("pack.compat.load_file_list", "Sounds", ".ogg", "sound_data", "filename", version, name)
 
     -- shaders in compat mode are only required for 21
     if not args.is_main_headless and version == 21 then
