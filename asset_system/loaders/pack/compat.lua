@@ -103,11 +103,12 @@ local function file_iter(dir, ending, loader, info)
                 -- virtual files take precedence over real ones (overwriting)
                 if virt_folder[name] then
                     coroutine.yield(
-                        index.local_request(loader, virt_folder[name], true, name, info.game_version, info.folder_name),
-                        name
+                        name,
+                        index.local_request(loader, virt_folder[name], true, name, info.game_version, info.folder_name)
                     )
                 else
                     coroutine.yield(
+                        name,
                         index.local_request(
                             loader,
                             info.path .. dir .. "/" .. name,
@@ -115,8 +116,7 @@ local function file_iter(dir, ending, loader, info)
                             name,
                             info.game_version,
                             info.folder_name
-                        ),
-                        name
+                        )
                     )
                 end
             end
@@ -194,7 +194,7 @@ end
 function compat_loaders.level_datas(pack_folder_name, version)
     local info = index.local_request("pack.compat.info", pack_folder_name, version)
     local levels = {}
-    for level_data in file_iter("Levels", ".json", "pack.compat.level_data", info) do
+    for _, level_data in file_iter("Levels", ".json", "pack.compat.level_data", info) do
         levels[#levels + 1] = level_data
         level_data.sort_index = #levels
     end
@@ -265,20 +265,22 @@ end
 function compat_loaders.load_file_list(dir, ending, loader, list_key, version, name, res_key)
     local info = index.local_request("pack.compat.info", name, version)
     local list = {}
-    for result, filename in file_iter(dir, ending, loader, info) do
-        local key = #list + 1
-        if list_key == "filename" then
-            key = filename
-        elseif list_key then
-            key = result[list_key]
-        end
-        if not key then
-            log("Failed loading " .. filename)
-        else
-            if res_key then
-                list[key] = result[res_key]
+    for filename, result in file_iter(dir, ending, loader, info) do
+        if result then
+            local key = #list + 1
+            if list_key == "filename" then
+                key = filename
+            elseif list_key then
+                key = result[list_key]
+            end
+            if not key then
+                log("Failed loading " .. filename)
             else
-                list[key] = result
+                if res_key then
+                    list[key] = result[res_key]
+                else
+                    list[key] = result
+                end
             end
         end
     end
