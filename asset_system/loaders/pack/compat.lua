@@ -67,7 +67,7 @@ function compat_loaders.json_file(path_or_content, use_vfs, filename)
     if type(result) == "userdata" then
         return {} -- jsonc does this when the string is empty for some reason
     end
-    return result
+    return result or {}
 end
 
 function compat_loaders.virtual_folder(pack_folder_name)
@@ -142,7 +142,7 @@ local function set_event_defaults(events)
 end
 
 function compat_loaders.level_data(path_or_content, is_content)
-    local level_json = index.local_request("pack.compat.json_file", path_or_content, is_content) or {}
+    local level_json = index.local_request("pack.compat.json_file", path_or_content, is_content)
     -- make keys have the same name for all versions
     -- get key names
     local key_names = {}
