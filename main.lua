@@ -245,9 +245,11 @@ function love.run()
                     end
                 end
             end
+            assets.run_main_thread_task()
         end
         local last_time = love.timer.getTime()
         return function()
+            assets.run_main_thread_task()
             love.event.pump()
             for event, t, err in love.event.poll() do
                 if event == "threaderror" then
