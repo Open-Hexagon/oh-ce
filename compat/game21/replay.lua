@@ -84,4 +84,83 @@ function replay.read(replay_obj, data, offset)
     replay_obj.score = love.data.unpack("<d", data, offset) / 60
 end
 
+---write the old replay format from the passed replay object
+---@param replay_obj Replay
+---@return string
+function replay.write(replay_obj)
+    assert(replay_obj.game_version == 21, "the old replay format only works for the steam version")
+    local data, offset = love.data.pack("string", ">I4", 0) -- format version
+    -- resolve which input binding names correspond to the 4 steam version inputs
+    local input_names = { "left", "right", "swap", "focus" }
+    local resolved_inputs = {}
+    local available_inputs = {}
+    for i = 1, #input_names do
+        local schemes = replay_obj.data.config[input_names[i]]
+        resolved_inputs[i] = {}
+        for j = 1, #schemes do
+            local scheme = schemes[j]
+            for k = 1, #scheme.ids do
+                local binding = scheme.scheme .. "_" .. scheme.ids[k]
+                resolved_inputs[i][j] = binding
+                available_inputs[binding] = true
+            end
+        end
+    end
+    -- the old format only stores the 4 default inputs, anything more cannot be saved
+    for i = 1, #replay_obj.data.keys do
+        if not available_inputs[replay_obj.data.keys[i]] then
+            error("Cannot convert replay with u_isKeyPressed data to old format.")
+        end
+    end
+    -- same assumption about native size as in the read function
+    local function write_str(str)
+        data = data .. love.data.pack("string", "<I4c" .. #str, #str, str)
+    end
+    local function write_uint64(num)
+        data = data
+            .. love.data.pack("string", "<I4", ffi.tonumber(bit.rshift(num, 32)))
+            .. love.data.pack("string", "<I4", ffi.tonumber(bit.band(num, 0xFFFFFFFF)))
+    end
+    write_str(replay_obj.player_name)
+    -- the steam version doesn't save the music seed
+    write_uint64(replay_obj.data.seeds[2])
+    write_uint64(replay_obj.input_tick_length)
+    local input_state = {}
+    for tick = 1, replay_obj.input_tick_length do
+        for key, state in replay_obj:get_key_state_changes(tick) do
+            input_state[key] = state
+        end
+        local input_bitmask = 0
+        for input = 1, 4 do
+            local state = false
+            local bindings = resolved_inputs[input]
+            for i = 1, #bindings do
+                state = state or input_state[bindings[i]]
+            end
+            if state then
+                input_bitmask = bit.bor(bit.lshift(1, input - 1), input_bitmask)
+            end
+        end
+        data = data .. love.data.pack("string", "<B", input_bitmask)
+    end
+    write_str(replay_obj.pack_id)
+    -- the steam version prefixes the level id with the pack id despite saving the pack id just earlier
+    write_str(replay_obj.pack_id .. "_" .. replay_obj.level_id)
+
+    assert(
+        next(replay_obj.data.level_settings, "difficulty_mult") == nil,
+        "replay has unsupported settings for the steam version"
+    )
+    -- TODO: check if this works on all platforms (float and double are native size)
+    data = data
+        .. love.data.pack(
+            "string",
+            "<Bfd",
+            replay_obj.first_play and 1 or 0,
+            replay_obj.data.level_settings.difficulty_mult or 1,
+            replay_obj.score * 60
+        )
+    return data
+end
+
 return replay

@@ -1,5 +1,5 @@
 local msgpack = require("extlibs.msgpack.msgpack")
-local old_replay = require("compat.game21.replay")
+local compat_replay = require("compat.game21.replay")
 
 ---@class Replay
 ---@field data table
@@ -110,36 +110,43 @@ function replay:record_seed(seed)
     self.data.seeds[#self.data.seeds + 1] = seed
 end
 
-function replay:_get_compressed()
-    local header =
-        love.data.pack("string", ">I4BBI4", 2, self.game_version, self.first_play and 1 or 0, self.input_tick_length)
-    local function write_str(str)
-        header = header .. love.data.pack("string", ">I4c" .. #str, #str, str)
-    end
-    write_str(self.player_name)
-    write_str(self.pack_id)
-    write_str(self.level_id)
-    for time, _ in pairs(self.input_data) do
-        self.data.input_times[#self.data.input_times + 1] = time
-    end
-    table.sort(self.data.input_times)
-    local data = msgpack.pack(self.data)
-    local input_data = ""
-    for i = 1, #self.data.input_times do
-        local time = self.data.input_times[i]
-        local state_changes = self.input_data[time]
-        input_data = input_data .. love.data.pack("string", ">B", #state_changes / 2)
-        for j = 1, #state_changes, 2 do
-            local key, state = state_changes[j], state_changes[j + 1]
-            input_data = input_data .. love.data.pack("string", ">BB", key, state and 1 or 0)
+function replay:_get_compressed(compat_format)
+    local result
+    if compat_format then
+        result = compat_replay.write(self)
+    else
+        local header = love.data.pack(
+            "string",
+            ">I4BBI4",
+            2,
+            self.game_version,
+            self.first_play and 1 or 0,
+            self.input_tick_length
+        )
+        local function write_str(str)
+            header = header .. love.data.pack("string", ">I4c" .. #str, #str, str)
         end
+        write_str(self.player_name)
+        write_str(self.pack_id)
+        write_str(self.level_id)
+        for time, _ in pairs(self.input_data) do
+            self.data.input_times[#self.data.input_times + 1] = time
+        end
+        table.sort(self.data.input_times)
+        local data = msgpack.pack(self.data)
+        local input_data = ""
+        for i = 1, #self.data.input_times do
+            local time = self.data.input_times[i]
+            local state_changes = self.input_data[time]
+            input_data = input_data .. love.data.pack("string", ">B", #state_changes / 2)
+            for j = 1, #state_changes, 2 do
+                local key, state = state_changes[j], state_changes[j + 1]
+                input_data = input_data .. love.data.pack("string", ">BB", key, state and 1 or 0)
+            end
+        end
+        result = header .. data .. input_data .. love.data.pack("string", ">d", self.score)
     end
-    return love.data.compress(
-        "data",
-        "zlib",
-        header .. data .. input_data .. love.data.pack("string", ">d", self.score),
-        9
-    )
+    return love.data.compress("data", "zlib", result, 9)
 end
 
 ---gets the hash of the replay and also returns the compressed data as it needs to be computed to get the hash already
@@ -153,9 +160,10 @@ end
 ---saves the replay into a file the data to write can optionally be specified if already gotten
 ---@param path string
 ---@param data string|love.CompressedData|nil
-function replay:save(path, data)
+---@param compat_format boolean?
+function replay:save(path, data, compat_format)
     local file = assert(love.filesystem.openFile(path, "w"))
-    file:write(data or self:_get_compressed())
+    file:write(data or self:_get_compressed(compat_format))
     file:close()
 end
 
@@ -163,7 +171,7 @@ function replay:_read(compressed_data)
     local data = love.data.decompress("string", "zlib", compressed_data)
     local version, offset = love.data.unpack(">I4", data)
     if version == 0 then
-        old_replay.read(self, data, offset)
+        compat_replay.read(self, data, offset)
     elseif version == 1 or version == 2 then
         if version == 1 then
             self.game_version, self.first_play, offset = love.data.unpack(">BB", data, offset)
