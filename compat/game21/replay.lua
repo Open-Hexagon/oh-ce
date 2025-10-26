@@ -117,9 +117,14 @@ function replay.write(replay_obj)
         data = data .. love.data.pack("string", "<I4c" .. #str, #str, str)
     end
     local function write_uint64(num)
+        num = ffi.new("uint64_t", num)
         data = data
-            .. love.data.pack("string", "<I4", ffi.tonumber(bit.rshift(num, 32)))
-            .. love.data.pack("string", "<I4", ffi.tonumber(bit.band(num, 0xFFFFFFFF)))
+            .. love.data.pack(
+                "string",
+                "<I4I4",
+                ffi.tonumber(bit.band(num, 0xFFFFFFFF)),
+                ffi.tonumber(bit.rshift(num, 32))
+            )
     end
     write_str(replay_obj.player_name)
     -- the steam version doesn't save the music seed
