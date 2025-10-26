@@ -182,7 +182,7 @@ else
                     thread.resolvers[result[1]](unpack(result, 3))
                 else
                     log(result[3])
-                    thread.rejecters[result[1]]()
+                    thread.rejecters[result[1]](result[3])
                 end
                 thread.resolvers[result[1]] = nil
                 thread.rejecters[result[1]] = nil
