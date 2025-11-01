@@ -169,7 +169,7 @@ function love.run()
         return function()
             local replay_file = love.thread.getChannel("replays_to_render"):demand(1)
 
-            assets.mirror_client.update()
+            assets.mirror_client.update(true)
             assets.run_main_thread_task(true)
 
             if replay_file then

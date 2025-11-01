@@ -188,6 +188,6 @@ end
 log("Done compressing all packs")
 
 while true do
-    assets.mirror_client.update()
+    assets.mirror_client.update(true)
     app:run_once()
 end

@@ -34,21 +34,25 @@ local function call_calbacks(key, value)
 end
 
 ---updates the contents of the mirror using the asset notifications
-function client.update()
-    ---@type MirrorNotification?
-    local msg = update_channel:pop()
-    if msg then
-        local key, data = unpack(msg)
-        -- if currently mirrored value is a table and new value is one, assume it's a diff
-        if type(client.mirror[key]) == "table" and type(data) == "table" then
-            ltdiff.patch(client.mirror[key], data, function(t)
-                call_calbacks(t, t)
-            end)
-        else
-            client.mirror[key] = data
+---if the all flag is false/nil only 1 notification gets processed
+---@param all boolean?
+function client.update(all)
+    repeat
+        ---@type MirrorNotification?
+        local msg = update_channel:demand(all and 1 or 0)
+        if msg then
+            local key, data = unpack(msg)
+            -- if currently mirrored value is a table and new value is one, assume it's a diff
+            if type(client.mirror[key]) == "table" and type(data) == "table" then
+                ltdiff.patch(client.mirror[key], data, function(t)
+                    call_calbacks(t, t)
+                end)
+            else
+                client.mirror[key] = data
+            end
+            call_calbacks(key, client.mirror[key])
         end
-        call_calbacks(key, client.mirror[key])
-    end
+    until not all or msg == nil
 end
 
 ---get a function to set the amount of times a callback can be called

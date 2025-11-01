@@ -196,7 +196,7 @@ local run = true
 local channel = love.thread.getChannel("game_commands")
 while run do
     local cmd = channel:demand(1)
-    assets.mirror_client.update()
+    assets.mirror_client.update(true)
     if cmd then
         log("processing game command.", channel:getCount(), "left.")
         if cmd[1] == "stop" then
