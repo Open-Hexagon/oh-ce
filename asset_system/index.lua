@@ -388,4 +388,45 @@ end
 
 --#endregion
 
+---get graphviz string for visualizing asset dependencies
+---@param id_or_key AssetId | MirrorKey
+---@param direction boolean?
+---@return string
+function index.get_dependency_graph(id_or_key, direction)
+    local buffer = require("string.buffer")
+    local data = buffer.new()
+    data:put("digraph {\ngraph [overlap=false]\nnode [shape=box]\n")
+    local count = 0
+    local nodes = {}
+    ---@param id AssetId
+    local function get_node(id)
+        if not nodes[id] then
+            count = count + 1
+            nodes[id] = count
+            data:putf("%d [label=<%s>]\n", count, id)
+        end
+        return nodes[id]
+    end
+    ---@param asset Asset
+    local function write_asset(asset)
+        if asset then
+            if direction then
+                for i = 1, #asset.dependencies do
+                    local dependency = asset.dependencies[i]
+                    data:putf("%d -> %d\n", get_node(dependency), get_node(asset.id))
+                    write_asset(assets[dependency])
+                end
+            else
+                for dependee in pairs(asset.depended_on_by) do
+                    data:putf("%d -> %d\n", get_node(asset.id), get_node(dependee))
+                    write_asset(assets[dependee])
+                end
+            end
+        end
+    end
+    write_asset(assets[id_or_key])
+    data:put("}\n")
+    return data:get()
+end
+
 return index

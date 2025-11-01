@@ -81,6 +81,17 @@ reload:argument("id", "asset or resource id")
 reload:flag("--resource", "indicates that the id argument is a resource id")
 reload:flag("--recursive", "reload all resource ids starting with the id argument")
 
+commands["inspect-asset-dependencies"] = function(options)
+    if options.reverse then
+        print(async.busy_await(assets.index.get_dependency_graph(options.asset_id)))
+    else
+        print(async.busy_await(assets.index.get_dependency_graph(options.asset_id, true)))
+    end
+end
+local inspect_asset_dependencies = parser:command("inspect-asset-dependencies")
+inspect_asset_dependencies:argument("asset_id")
+inspect_asset_dependencies:flag("--reverse")
+
 local exit_channel = love.thread.getChannel("scheduled_exit")
 function commands.exit(options)
     local code = tonumber(options.code)
