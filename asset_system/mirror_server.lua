@@ -52,6 +52,7 @@ local function send_notification(asset)
 
     -- send a table diff instead of whole table when last mirrored value is a table
     local send_diff = type(asset.last_mirrored_value) == "table" and type(asset.value) == "table" and can_diff
+    local copied_value
     if send_diff then
         notification[2] = ltdiff.diff(asset.last_mirrored_value, asset.value)
     end
@@ -59,7 +60,15 @@ local function send_notification(asset)
     for thread, should_mirror in pairs(targets) do
         if should_mirror then
             local channel = love.thread.getChannel("asset_index_updates_" .. thread)
-            wait_for[channel] = channel:push(notification)
+            if not send_diff and copied_value == nil then
+                -- need to make a copy, so performAtomic is required to get copy before client pops
+                channel:performAtomic(function()
+                    wait_for[channel] = channel:push(notification)
+                    copied_value = channel:peek()[2]
+                end)
+            else
+                wait_for[channel] = channel:push(notification)
+            end
         end
     end
     if send_diff then
@@ -67,7 +76,7 @@ local function send_notification(asset)
         ltdiff.patch(asset.last_mirrored_value, notification[2])
     else
         -- copy the value sent to the channel
-        asset.last_mirrored_value = next(wait_for):peek()[2]
+        asset.last_mirrored_value = copied_value
     end
     return wait_for
 end
