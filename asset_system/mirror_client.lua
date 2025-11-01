@@ -36,10 +36,11 @@ end
 ---updates the contents of the mirror using the asset notifications
 ---if the all flag is false/nil only 1 notification gets processed
 ---@param all boolean?
-function client.update(all)
+---@param timeout number?
+function client.update(all, timeout)
     repeat
         ---@type MirrorNotification?
-        local msg = update_channel:demand(all and 1 or 0)
+        local msg = update_channel:demand(all and (timeout or 1) or 0)
         if msg then
             local key, data = unpack(msg)
             -- if currently mirrored value is a table and new value is one, assume it's a diff
