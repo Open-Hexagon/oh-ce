@@ -884,6 +884,7 @@ function HTTP:run_once()
     elseif self.working == 0 then
         love.timer.sleep(0.01)
     end
+    return #self.clients == 0 or self.working == 0
 end
 
 return HTTP
