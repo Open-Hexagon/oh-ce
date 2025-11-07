@@ -62,7 +62,7 @@ jobs:
 
     - name: Copy embedded App
       run: |
-        cp -r *.lua assets audio compat extlibs game game_handler server ui input_schemes love-android/app/src/embed/assets
+        cp -r *.lua assets asset_system audio compat extlibs game game_handler server ui input_schemes love-android/app/src/embed/assets
         tree love-android/app/src/embed/assets
 
     - name: Build sqlite3
