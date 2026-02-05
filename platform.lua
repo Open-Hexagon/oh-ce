@@ -1,4 +1,7 @@
 -- platform specific adjustments and features
+
+local args = require("args")
+
 local features = {}
 
 -- thanks to fake dlfcn functions, the library is actually just statically compiled in
@@ -68,7 +71,7 @@ end)() ~= "test" then
     end
 end
 
-if not require("args").headless then
+if not args.headless then
     love.thread
         .newThread([[
     require("love.graphics")

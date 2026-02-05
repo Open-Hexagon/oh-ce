@@ -18,6 +18,8 @@ You may also put them elsewhere in the code where you see fit, but it is not req
 While it is not required at every point, functions and classes that are used many times in the code should be annotated with emmylua documentation comments. See [this page](https://emmylua.github.io/annotations/example.html) for an example.
 Many language servers use it for auto completion, so it is very useful.
 
+All requires should be made at the top of files and not inside functions or other statements. This makes it easy to immediately know what what modules a file requires. It also discourages the use of cyclic dependencies which should be avoided. (This isn't a strict rule as sometimes there are good reasons to break this.)
+
 
 ## Design
 The codebase is large and will only continue to grow. For this reason it is important to keep the following in mind:

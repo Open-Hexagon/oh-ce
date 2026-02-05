@@ -6,7 +6,6 @@
 ---@field executed boolean
 ---@field result any
 ---@field resolved boolean
----@private done_callbacks table
 local promise = {}
 promise.__index = promise
 
@@ -21,6 +20,7 @@ function promise:new(fn)
         result = nil,
         resolved = false,
     }, promise)
+
     fn(function(...)
         obj.resolved = true
         obj.result = { ... }
@@ -52,12 +52,12 @@ function promise:done(callback)
         end
         return self
     end
-    self.done_callbacks[#self.done_callbacks + 1] = callback
+    table.insert(self.done_callbacks, callback)
     return self
 end
 
 ---adds an error (reject) callback to the promise
----@param callback any
+---@param callback function
 ---@return table
 function promise:err(callback)
     if self.executed then
@@ -66,7 +66,7 @@ function promise:err(callback)
         end
         return self
     end
-    self.error_callbacks[#self.error_callbacks + 1] = callback
+    table.insert(self.error_callbacks, callback)
     return self
 end
 
@@ -91,6 +91,9 @@ local async = setmetatable({}, {
     end,
 })
 
+---comment
+---@param prom promise
+---@return any ... 
 function async.await(prom)
     if prom.executed then
         return unpack(prom.result)

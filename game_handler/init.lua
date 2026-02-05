@@ -355,42 +355,44 @@ end
 ---@param frametime number?
 function game_handler.draw(frametime)
     -- can only start rendering once the initial resize event was processed
-    if current_game and current_game.running then
-        frametime = frametime or love.timer.getDelta()
-        local width, height = love.graphics.getDimensions()
-        if current_game.preview_mode then
-            -- make (0, 0) be the center
-            love.graphics.translate(width / 2, height / 2)
-            love.graphics.setColor(1, 1, 1, 1)
-            if is_resumed then
-                current_game.preview_mode = false
-            end
-            current_game.draw(love.graphics, frametime)
-            if is_resumed then
-                current_game.preview_mode = true
-            end
-        elseif screen ~= nil then
-            -- render onto the screen
-            local last_canvas = love.graphics.getCanvas()
-            love.graphics.setCanvas(screen)
-            love.graphics.clear(0, 0, 0, 1)
-            -- make (0, 0) be the center
-            love.graphics.translate(screen:getWidth() / 2, screen:getHeight() / 2)
-            current_game.draw(screen, frametime)
-            love.graphics.setCanvas(last_canvas)
-            -- render the canvas in the middle of the window
-            love.graphics.origin()
-            love.graphics.translate((width - width * scale[1]) / 2, (height - height * scale[2]) / 2)
-            local res_scale = config.get("game_resolution_scale")
-            love.graphics.scale(res_scale, res_scale)
-            -- the color of the canvas' contents will look wrong if color isn't white
-            love.graphics.setColor(1, 1, 1, 1)
-            love.graphics.setBlendMode("alpha", "premultiplied")
-            love.graphics.draw(screen)
-            love.graphics.setBlendMode("alpha", "alphamultiply")
-        end
-        love.graphics.origin()
+    if not (current_game and current_game.running) then
+        return
     end
+
+    frametime = frametime or love.timer.getDelta()
+    local width, height = love.graphics.getDimensions()
+    if current_game.preview_mode then
+        -- make (0, 0) be the center
+        love.graphics.translate(width / 2, height / 2)
+        love.graphics.setColor(1, 1, 1, 1)
+        if is_resumed then
+            current_game.preview_mode = false
+        end
+        current_game.draw(love.graphics, frametime)
+        if is_resumed then
+            current_game.preview_mode = true
+        end
+    elseif screen ~= nil then
+        -- render onto the screen
+        local last_canvas = love.graphics.getCanvas()
+        love.graphics.setCanvas(screen)
+        love.graphics.clear(0, 0, 0, 1)
+        -- make (0, 0) be the center
+        love.graphics.translate(screen:getWidth() / 2, screen:getHeight() / 2)
+        current_game.draw(screen, frametime)
+        love.graphics.setCanvas(last_canvas)
+        -- render the canvas in the middle of the window
+        love.graphics.origin()
+        love.graphics.translate((width - width * scale[1]) / 2, (height - height * scale[2]) / 2)
+        local res_scale = config.get("game_resolution_scale")
+        love.graphics.scale(res_scale, res_scale)
+        -- the color of the canvas' contents will look wrong if color isn't white
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.setBlendMode("alpha", "premultiplied")
+        love.graphics.draw(screen)
+        love.graphics.setBlendMode("alpha", "alphamultiply")
+    end
+    love.graphics.origin()
 end
 
 ---check if a replay is fully replayed only in terms of inputs
