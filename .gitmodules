@@ -1,4 +1,4 @@
 [submodule "ohui"]
-	path = ohui
+	path = src/ohui
 	url = git@github.com:Open-Hexagon/ohui.git
 	branch = imgui-s
