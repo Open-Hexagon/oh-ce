@@ -51,14 +51,22 @@ end
 if coroutine.wrap(function()
     pcall(coroutine.yield, "test")
 end)() ~= "test" then
+    local old_pcall = pcall
     function pcall(f, ...)
-        local co = coroutine.create(f)
+        local success, co = old_pcall(coroutine.create, f)
+        -- fall back to old pcall if coroutine cannot be created
+        -- (usually happens when called with a c function)
+        if not success then
+            return old_pcall(f, ...)
+        end
         local result
-        repeat
+        while true do
             result = { coroutine.resume(co, ...) }
+            if coroutine.status(co) ~= "suspended" then
+                return unpack(result)
+            end
             coroutine.yield(unpack(result, 2))
-        until coroutine.status(co) ~= "suspended"
-        return unpack(result)
+        end
     end
     function xpcall(f, errf, ...)
         local result = { pcall(f, ...) }
@@ -71,7 +79,7 @@ end)() ~= "test" then
     end
 end
 
-if not args.headless then
+if not args.headless and not love.system.getOS() == "Web" then
     love.thread
         .newThread([[
     require("love.graphics")

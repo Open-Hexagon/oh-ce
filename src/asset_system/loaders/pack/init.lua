@@ -48,7 +48,7 @@ function pack_loaders.pack_register(pack_folder_name, version)
             if dependency_pack == nil then
                 has_all_deps = false
             else
-                dependency_ids[#dependency_ids + 1] = dependency_pack.id
+                dependency_ids[#dependency_ids + 1] = dependency_pack.info.id
             end
         end
     end

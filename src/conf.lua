@@ -1,6 +1,11 @@
+-- make sure all required files are available
+love.filesystem.mountFullPath(love.filesystem.getSourceBaseDirectory() .. "/assets", "assets")
+love.filesystem.mountFullPath(love.filesystem.getSourceBaseDirectory() .. "/extlibs", "extlibs")
+
 local args = require("args")
 
 function love.conf(t)
+    t.identity = "oh-ce"
     t.version = "12.0"
     if not args.headless then
         t.window.title = "Open Hexagon"

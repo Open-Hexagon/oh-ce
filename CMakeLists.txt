@@ -16,7 +16,7 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
 )
 
 add_library(encode SHARED
-	game_handler/video/encode.c
+	src/game_handler/video/encode.c
 )
 target_link_libraries(encode
     PkgConfig::LIBAV

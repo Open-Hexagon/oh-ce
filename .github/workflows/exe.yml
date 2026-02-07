@@ -9,7 +9,7 @@ on:
 
 env:
   BUILD_TYPE: Release
-  LOVE_ARTIFACT_URL: "https://api.github.com/repos/love2d/love/actions/artifacts/4160439887/zip"
+  LOVE_ARTIFACT_URL: "https://api.github.com/repos/love2d/love/actions/artifacts/5380697880/zip"
 
 jobs:
   build:
@@ -38,7 +38,7 @@ jobs:
         mkdir oh-ce/lib
         cp /mingw64/bin/libsqlite3-0.dll oh-ce/lib/libsqlite3.dll
         cp /mingw64/bin/libwinpthread-1.dll oh-ce
-        cp -r *.lua assets asset_system audio compat extlibs game game_handler server ui input_schemes oh-ce
+        cp -r assets src/* extlibs oh-ce
         cp extra/windows/launch.bat oh-ce
 
         # create extra folder so the zip contains an oh-ce folder instead of directly having all files
