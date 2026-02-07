@@ -68,7 +68,7 @@ end)() ~= "test" then
     end
 end
 
-if not require("args").headless then
+if not require("args").headless and not love.system.getOS() == "Web" then
     love.thread
         .newThread([[
     require("love.graphics")
