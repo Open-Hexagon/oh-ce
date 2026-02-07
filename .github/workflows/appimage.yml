@@ -9,7 +9,7 @@ on:
 
 env:
   BUILD_TYPE: Release
-  LOVE_ARTIFACT_URL: "https://api.github.com/repos/love2d/love/actions/artifacts/4160426152/zip"
+  LOVE_ARTIFACT_URL: "https://api.github.com/repos/love2d/love/actions/artifacts/5380675194/zip"
 
 jobs:
   build:
