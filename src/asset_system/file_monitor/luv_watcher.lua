@@ -8,7 +8,6 @@ local log = require("log")(...)
 local event_handles = {}
 ---@type table<string, boolean>
 local stopped = {}
-local save_dir = love.filesystem.getSaveDirectory()
 
 ---watch files (called in loop), yields path on file changes
 ---@param file_list string[]
@@ -19,8 +18,9 @@ return function(file_list)
         event_handles[path] = event_handles[path] or uv.new_fs_event()
         -- the file path of a handle is nil if it has been stopped or not started yet
         if event_handles[path]:getpath() == nil then
-            -- add save directory to path as luv uses native ones
-            local prefix = love.filesystem.getRealDirectory(path) == save_dir and save_dir .. "/" or ""
+            -- add save or source directory to path as luv uses native ones
+            local prefix = love.filesystem.getRealDirectory(path)
+            prefix = prefix and prefix .. "/" or ""
             local ret, err = event_handles[path]:start(prefix .. path, {}, function(err, filename)
                 if err then
                     -- I have never seen that happen, so not sure what could go wrong here
