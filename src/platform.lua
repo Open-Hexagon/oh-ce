@@ -48,8 +48,14 @@ end
 if coroutine.wrap(function()
     pcall(coroutine.yield, "test")
 end)() ~= "test" then
+    local old_pcall = pcall
     function pcall(f, ...)
-        local co = coroutine.create(f)
+        local success, co = old_pcall(coroutine.create, f)
+        -- fall back to old pcall if coroutine cannot be created
+        -- (usually happens when called with a c function)
+        if not success then
+            return old_pcall(f, ...)
+        end
         local result
         repeat
             result = { coroutine.resume(co, ...) }
