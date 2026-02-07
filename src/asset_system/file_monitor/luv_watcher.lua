@@ -21,7 +21,7 @@ return function(file_list)
         if event_handles[path]:getpath() == nil then
             -- add save directory to path as luv uses native ones
             local prefix = love.filesystem.getRealDirectory(path) == save_dir and save_dir .. "/" or ""
-            event_handles[path]:start(prefix .. path, {}, function(err, filename)
+            local ret, err = event_handles[path]:start(prefix .. path, {}, function(err, filename)
                 if err then
                     -- I have never seen that happen, so not sure what could go wrong here
                     log("Error watching", filename, err)
@@ -32,6 +32,9 @@ return function(file_list)
                 event_handles[path]:stop()
                 stopped[path] = true
             end)
+            if ret ~= 0 then
+                log(("Error while creating file handle for '%s': %s"):format(prefix .. path, err))
+            end
             if not is_first_time and event_handles[path]:getpath() ~= nil or stopped[path] then
                 -- started handle successfully for not the first time
                 -- didn't start but stopped in the callback earlier (required for deleting files)
