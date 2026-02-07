@@ -57,11 +57,13 @@ end)() ~= "test" then
             return old_pcall(f, ...)
         end
         local result
-        repeat
+        while true do
             result = { coroutine.resume(co, ...) }
+            if coroutine.status(co) ~= "suspended" then
+                return unpack(result)
+            end
             coroutine.yield(unpack(result, 2))
-        until coroutine.status(co) ~= "suspended"
-        return unpack(result)
+        end
     end
     function xpcall(f, errf, ...)
         local result = { pcall(f, ...) }
