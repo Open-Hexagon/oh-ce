@@ -32,7 +32,7 @@ jobs:
         sudo apt install desktop-file-utils
         # create directory (git doesn't push empty directories)
         mkdir -p extra/linux/squashfs-root/share/games/oh-ce
-        cp -r src/* extlibs extra/linux/squashfs-root/share/games/oh-ce
+        cp -r assets src/* extlibs extra/linux/squashfs-root/share/games/oh-ce
         # extract love over everything
         cd extra/linux
         curl -L -H "Accept: application/vnd.github+json" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" --output love12.zip --url "${{ env.LOVE_ARTIFACT_URL }}"

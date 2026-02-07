@@ -62,7 +62,7 @@ jobs:
 
     - name: Copy embedded App
       run: |
-        cp -r src/* extlibs love-android/app/src/embed/assets
+        cp -r assets src/* extlibs love-android/app/src/embed/assets
         tree love-android/app/src/embed/assets
 
     - name: Build sqlite3

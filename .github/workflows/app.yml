@@ -34,7 +34,7 @@ jobs:
         mv love.app oh-ce.app
         # copy files into bundle (.love folder ending to fool love into thinking there is a zip bundle to start)
         mkdir oh-ce.app/Contents/Resources/oh-ce.love
-        cp -r src/* extlibs oh-ce.app/Contents/Resources/oh-ce.love
+        cp -r assets src/* extlibs oh-ce.app/Contents/Resources/oh-ce.love
         # insert the right metadata
         patch oh-ce.app/Contents/Info.plist extra/osx/app-data.patch
         # work around https://github.com/actions/upload-artifact/issues/38 (executable permission not preserved) by uploading a zipped tarball

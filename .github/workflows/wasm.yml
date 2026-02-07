@@ -98,7 +98,7 @@ jobs:
     - name: Create Website
       run: |
         mkdir oh-ce-source
-        cp -r src/* extlibs oh-ce-source
+        cp -r assets src/* extlibs oh-ce-source
         cd love-web-builder
         mkdir contents
         python build.py -n "Open Hexagon CE" ../oh-ce-source contents/oh-ce-wasm
