@@ -15,11 +15,14 @@ We use [stylua](https://github.com/JohnnyMorganz/StyLua) to enforce our code sty
 Stylua does not enforce the amount of blank lines between blocks of code. However you should put at least one blank line between function definitions.
 You may also put them elsewhere in the code where you see fit, but it is not required.
 
-While it is not required at every point, functions and classes that are used many times in the code should be annotated with emmylua documentation comments. See [this page](https://emmylua.github.io/annotations/example.html) for an example.
-Many language servers use it for auto completion, so it is very useful.
+While it is not required at every point, functions and classes that are used many times in the code should be annotated with [LuaLS](https://luals.github.io/) style annotations. See [this page](https://luals.github.io/wiki/annotations/) for a list of supported annotations and examples. Many language servers use these for auto completion, so it is very useful. (Note that EmmyLua annotations are not compatible with LuaLS annotations.)
 
-All requires should be made at the top of files and not inside functions or other statements. This makes it easy to immediately know what what modules a file requires. It also discourages the use of cyclic dependencies which should be avoided. (This isn't a strict rule as sometimes there are good reasons to break this.)
+All requires should be made at the top of files and not inside functions or other statements. This makes it easy to immediately know what modules a file requires. It also discourages the use of cyclic dependencies which should be avoided. (This isn't a strict rule as sometimes there are good reasons to break this.)
 
+**A word about gotos:** LuaJIT gives us labeled goto statements. We allow the use of gotos as they are very useful in certain situations and can make code more readable. Gotos must have descriptive labels. Examples of okay uses for goto are:
+
+- Reducing indentation: Either by replicating continue statements, or creating guard clauses in places where a normal return wouldn't work.
+- Handling errors or rare special cases.
 
 ## Design
 The codebase is large and will only continue to grow. For this reason it is important to keep the following in mind:

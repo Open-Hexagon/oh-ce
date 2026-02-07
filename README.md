@@ -25,6 +25,8 @@ There is a `CMakeLists.txt` for building the c code for the video export. It req
 - pkg config
 - ffmpeg
 
+(Keep in mind that the packages should not be too up to date for the code to compile.)
+
 On debian-based distributions they can be installed with this command:
 ```
 apt install \
@@ -39,13 +41,16 @@ apt install \
     libswscale-dev \
     libavutil-dev
 ```
-(Keep in mind that the packages should not be too outdated for the code to compile.)
 
 On arch based distributions they can be installed with this line:
 ```
 pacman -S cmake make gcc libsodium pkgconf ffmpeg
 ```
-(Keep in mind that the packages should not be too up to date for the code to compile.)
+
+On RHEL based distributions (Fedora, OpenSUSE) they can be installed with this line:
+```
+dnf install cmake make gcc libsodium pkgconf ffmpeg-devel
+```
 
 Then you can proceed with building
 ```
