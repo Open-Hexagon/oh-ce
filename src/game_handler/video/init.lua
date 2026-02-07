@@ -9,14 +9,12 @@ int supply_video_data(const void* video_data);
 void stop_encoding();
 ]])
 
-local clib_path
+local clib_path = "lib/libencode.so"
 local sys = love.system.getOS()
 if sys == "OS X" or sys == "iOS" then
     clib_path = "lib/libencode.dylib"
 elseif sys == "Windows" then
     clib_path = "lib/libencode.dll"
-elseif sys == "Linux" or sys == "Android" then
-    clib_path = "lib/libencode.so"
 end
 local success, clib = pcall(ffi.load, clib_path)
 if not success then
