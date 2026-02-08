@@ -115,7 +115,7 @@ else
     ---run a module in a different thread but allow calling its functions from here
     ---@param require_string string
     ---@param no_responses boolean?
-    ---@return table<string, fun(...): promise>
+    ---@return table<string, fun(...): Promise>
     function threadify.require(require_string, no_responses)
         if not thread_map[require_string] then
             -- get thread if already running, start it if not
@@ -156,7 +156,7 @@ else
                         cmd_channel:push(msg)
                         return
                     end
-                    return async.promise:new(function(resolve, reject)
+                    return async.new_promise(function(resolve, reject)
                         local request_id = 1
                         while thread.resolvers[request_id] do
                             request_id = request_id + 1
