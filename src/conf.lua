@@ -1,6 +1,10 @@
 -- make sure all required files are available
-love.filesystem.mountFullPath(love.filesystem.getSourceBaseDirectory() .. "/assets", "assets")
-love.filesystem.mountFullPath(love.filesystem.getSourceBaseDirectory() .. "/extlibs", "extlibs")
+if not love.filesystem.mountFullPath(love.filesystem.getSourceBaseDirectory() .. "/assets", "assets") then
+    error("failed to mount assets folder")
+end
+if not love.filesystem.mountFullPath(love.filesystem.getSourceBaseDirectory() .. "/extlibs", "extlibs") then
+    error("failed to mount extlibs folder")
+end
 
 local args = require("args")
 

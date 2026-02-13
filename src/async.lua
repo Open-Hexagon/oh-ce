@@ -149,7 +149,7 @@ function async.await(prom)
     end)
 
     -- Wait
-    -- Yield will returned any values from the promise, which will be passed as arguments to the corresponding resume 
+    -- Yield will returned any values from the promise, which will be passed as arguments to the corresponding resume
     return coroutine.yield() -- (1)
 end
 
