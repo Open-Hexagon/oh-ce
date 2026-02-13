@@ -1,4 +1,8 @@
+-- parses command line arguments
+
+-- this is here only in case this gets run from a thread
 require("love.thread")
+
 if arg == nil then
     -- called from thread
     local args = love.thread.getChannel("command_line_arguments"):peek()
@@ -6,6 +10,7 @@ if arg == nil then
     args.headless = true -- threads are always headless, this is a limitation of sdl which love is based on
     return args
 end
+
 local argparse = require("extlibs.argparse")
 
 local parser = argparse("oh-ce", "Open Hexagon Community Edition")

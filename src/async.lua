@@ -155,7 +155,7 @@ end
 
 ---Blocks the current thread until a promise resolves.
 ---@param prom Promise
----@param in_coroutine_loop boolean
+---@param in_coroutine_loop boolean?
 ---@return any ...
 function async.busy_await(prom, in_coroutine_loop)
     -- this function is the only implementation specific one (assumes love and the asset system are used)
