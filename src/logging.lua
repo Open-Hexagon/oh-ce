@@ -98,13 +98,15 @@ function logging.close_all()
     end
 end
 
+local LOGGING_PATH = "logs/"
+local MAX_LOG_FILES = 16
+
 -- set up a log file
 do
     require("love.thread")
 
     local ch = love.thread.getChannel("logging_file")
 
-    local LOGGING_PATH = "logs/"
     if not love.filesystem.getInfo(LOGGING_PATH) then
         love.filesystem.createDirectory(LOGGING_PATH)
     end
@@ -115,6 +117,7 @@ do
         log_file = ch:peek()
         assert(log_file, "logging.lua has to be included in main thread before usage in other threads")
     else
+        -- create a new log file
         local attempt = 1
         local path
 
@@ -167,6 +170,36 @@ if not args.quiet then
     })
 end
 
-logging.get_logger("THREAD " .. thread_id):debug("begin logging")
+local log = logging.get_logger(string.format("logger (THREAD %d)", thread_id))
+
+log:debug("begin logging")
+
+-- clean up old logs in the main thread
+if arg then
+    local items = love.filesystem.getDirectoryItems(LOGGING_PATH)
+    local files = {}
+
+    for i = 1, #items do
+        local item = items[i]
+        local fullPath = LOGGING_PATH .. item
+        local info = love.filesystem.getInfo(fullPath)
+
+        if info and info.type == "file" then
+            table.insert(files, {
+                path = fullPath,
+                modtime = info.modtime or 0,
+            })
+        end
+    end
+
+    table.sort(files, function(a, b)
+        return a.modtime > b.modtime
+    end)
+
+    for i = MAX_LOG_FILES + 1, #files do
+        love.filesystem.remove(files[i].path)
+        log:info("removed log file: " .. files[i].path)
+    end
+end
 
 return logging
