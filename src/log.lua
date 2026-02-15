@@ -1,5 +1,8 @@
+-- TODO: to be replaced by logging module
+
 ---Gets a log function
 ---@param modname string logging identity
+---@deprecated
 return function(modname)
     return function(...)
         -- don't print stuff when testing

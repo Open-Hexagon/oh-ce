@@ -1,15 +1,18 @@
 local json = require("extlibs.json.json-beautify")
 local input_schemes = require("input_schemes")
+
 local config = {}
+
 local settings = {}
 local properties = {}
-
-local profile_path = "config/"
-local current_profile = nil
-if not love.filesystem.getInfo(profile_path) then
-    love.filesystem.createDirectory(profile_path)
-end
 local categories = {}
+
+local current_profile = nil
+
+local PROFILE_PATH = "config/"
+if not love.filesystem.getInfo(PROFILE_PATH) then
+    love.filesystem.createDirectory(PROFILE_PATH)
+end
 
 ---add a setting to the config
 ---@param name string
@@ -298,7 +301,7 @@ end
 ---creates a new profile (raises an error if one with the same name already exists)
 ---@param name string
 function config.create_profile(name)
-    local path = profile_path .. name .. ".json"
+    local path = PROFILE_PATH .. name .. ".json"
     if not love.filesystem.getInfo(path) then
         save_to_json(path)
     else
@@ -310,7 +313,7 @@ end
 ---opens a profile (raises an error if it doesn't exist)
 ---@param name string
 function config.open_profile(name)
-    local path = profile_path .. name .. ".json"
+    local path = PROFILE_PATH .. name .. ".json"
     if love.filesystem.getInfo(path) then
         load_from_json(path)
     else
@@ -328,7 +331,7 @@ end
 ---deletes a profile
 ---@param name string
 function config.delete_profile(name)
-    local path = profile_path .. name .. ".json"
+    local path = PROFILE_PATH .. name .. ".json"
     if love.filesystem.getInfo(path) then
         love.filesystem.remove(path)
     end
@@ -339,7 +342,7 @@ end
 ---returns a table containing the names of all existing profiles
 ---@return table
 function config.list_profiles()
-    local filenames = love.filesystem.getDirectoryItems(profile_path)
+    local filenames = love.filesystem.getDirectoryItems(PROFILE_PATH)
     local names = {}
     for i = 1, #filenames do
         names[i] = filenames[i]:sub(1, -6)
@@ -349,7 +352,7 @@ end
 
 ---saves the current profile
 function config.save()
-    save_to_json(profile_path .. current_profile .. ".json")
+    save_to_json(PROFILE_PATH .. current_profile .. ".json")
 end
 
 -- no profile loaded yet so use defaults for now

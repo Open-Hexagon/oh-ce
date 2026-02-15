@@ -1,8 +1,9 @@
 local json = require("extlibs.json.json-beautify")
-local global_config = {}
-local settings = {}
 local profile = require("game_handler.profile")
 local config = require("config")
+
+local global_config = {}
+local settings = {}
 local path = "config.json"
 
 local function save()
