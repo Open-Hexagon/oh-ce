@@ -1,4 +1,4 @@
-local log = require("log")(...)
+local log = require("logging").get_logger(...)
 local json = require("extlibs.json.json")
 local mirror_server = require("asset_system.mirror_server")
 require("love.timer")
@@ -71,7 +71,7 @@ end
 
 local function print_stats(start_text)
     if load_call_count > 0 then
-        log(
+        log:info(
             ("%s in %fs with %d loader call%s."):format(
                 start_text,
                 love.timer.getTime() - start_time,

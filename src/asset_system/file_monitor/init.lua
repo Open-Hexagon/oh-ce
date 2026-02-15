@@ -1,19 +1,19 @@
-local log = require("log")(...)
+local log = require("logging").get_logger(...)
 
 -- sorted by priority
 local implementations = {
     "asset_system.file_monitor.luv_watcher",
     "asset_system.file_monitor.poll_watcher",
 }
-log("Checking hot reloading backends...")
+log:info("Checking hot reloading backends...")
 local impl
 for i = 1, #implementations do
     impl = require(implementations[i])
     if impl then
-        log(("'%s' is available."):format(implementations[i]))
+        log:info(("'%s' is available."):format(implementations[i]))
         break
     else
-        log(("'%s' is not available. Checking other backends..."):format(implementations[i]))
+        log:info(("'%s' is not available. Checking other backends..."):format(implementations[i]))
     end
 end
 local threadify = require("threadify")
@@ -35,9 +35,9 @@ local file_list = {}
 ---start watching files while optionally filtering for the beginning of the path
 ---@param filter string?
 function watcher.start(filter)
-    log("Start.")
+    log:info("Start.")
     if filter then
-        log("Filter:", filter)
+        log:info("Filter:", filter)
     end
     path_filter = filter
     if filter then
@@ -62,7 +62,7 @@ function watcher.start(filter)
             paths[i] = co(filtered_list)
         until not paths[i]
         if i > 1 then
-            log("Files changed: " .. table.concat(paths, ", ", 1, i - 1))
+            log:info("Files changed: " .. table.concat(paths, ", ", 1, i - 1))
             index.changed(unpack(paths, 1, i - 1))
         end
         -- has to be non-blocking so new files can be added while watching
@@ -72,7 +72,7 @@ end
 
 ---stop watching
 function watcher.stop()
-    log("Stop.")
+    log:info("Stop.")
     watching = false
 end
 

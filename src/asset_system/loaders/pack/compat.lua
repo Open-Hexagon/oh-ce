@@ -1,4 +1,4 @@
-local log = require("log")(...)
+local log = require("logging").get_logger(...)
 local index = require("asset_system.index")
 local json = require("extlibs.json.jsonc")
 local vfs = require("compat.game192.virtual_filesystem")
@@ -44,7 +44,7 @@ function compat_loaders.text_file(path_or_content, use_vfs)
         index.watch_file(path_or_content)
         local contents, err = love.filesystem.read(path_or_content)
         if not contents then
-            log(("Error reading file '%s': %s"):format(path_or_content, err))
+            log:error(("Error reading file '%s': %s"):format(path_or_content, err))
             contents = ""
         end
         return contents
@@ -66,7 +66,7 @@ function compat_loaders.json_file(path_or_content, use_vfs, filename)
     end
     -- catch decode errors
     local _, result = xpcall(json.decode_jsonc, function(msg)
-        log("Error: can't decode '" .. (filename or path_or_content) .. "': " .. msg)
+        log:error("Error: can't decode '" .. (filename or path_or_content) .. "': " .. msg)
     end, str)
     if type(result) == "userdata" then
         return {} -- jsonc does this when the string is empty for some reason
@@ -220,7 +220,7 @@ function compat_loaders.info(pack_folder_name, version)
     local info = {}
     index.watch_file(folder .. "pack.json")
     if not love.filesystem.exists(folder .. "pack.json") then
-        log("Invalid pack at " .. folder .. " missing pack.json")
+        log:error("Invalid pack at " .. folder .. " missing pack.json")
     else
         info = index.local_request("pack.compat.json_file", folder .. "pack.json")
     end
@@ -278,7 +278,7 @@ function compat_loaders.load_file_list(dir, ending, loader, list_key, version, n
                 key = result[list_key]
             end
             if not key then
-                log("Failed loading " .. filename)
+                log:error("Failed loading " .. filename)
             else
                 if res_key then
                     list[key] = result[res_key]
@@ -448,7 +448,7 @@ function compat_loaders.full_load(version, id)
         end
     end
 
-    log("Loading '" .. pack.info.id .. "' assets")
+    log:info("Loading '" .. pack.info.id .. "' assets")
 
     pack.music =
         index.local_request("pack.compat.load_file_list", "Music", ".json", "pack.compat.music", "id", version, name)

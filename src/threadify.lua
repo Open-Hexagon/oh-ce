@@ -1,8 +1,7 @@
 require("platform")
-local log = require("log")("threadify")
+local log = require("logging").get_logger("threadify")
 local modname, is_thread = ...
 
----@alias ThreadId integer
 ---@alias CallId integer
 ---@alias ThreadCommand [ThreadId, CallId, string, ...]
 ---@alias ThreadResult [CallId, boolean, unknown]
@@ -48,11 +47,11 @@ if is_thread then
             end
             if not success then
                 if cmd then
-                    log(("Error calling '%s.%s' with:"):format(modname, cmd[3]), unpack(cmd, 4))
+                    log:error(("Error calling '%s.%s' with:"):format(modname, cmd[3]), unpack(cmd, 4))
                 else
-                    log(("Error resuming coroutine in %s"):format(modname))
+                    log:error(("Error resuming coroutine in %s"):format(modname))
                 end
-                log(debug.traceback(co, ret))
+                log:error(debug.traceback(co, ret))
             end
         end
         return is_dead
@@ -131,14 +130,7 @@ else
     ---Used to enforce one thread per required module
     local threads_channel = love.thread.getChannel("threads")
 
-    ---Get a unique id for this thread using a counter from a channel
-    ---The main thread is always number 1. If another thread requires threadify, it will get increasing numbers.
-    ---@type ThreadId
-    threadify.thread_id = love.thread.getChannel("thread_ids"):performAtomic(function(channel)
-        local counter = (channel:pop() or 0) + 1
-        channel:push(counter)
-        return counter
-    end)
+    local thread_id = require("thread_id")
 
     ---Run a module in a different thread but allow calling its functions from here.
     ---All valid calls to that module will return promises (unless no_responses is set).
@@ -186,7 +178,7 @@ else
             require_string = require_string,
             resolvers = {},
             rejecters = {},
-            out_channel = love.thread.getChannel(("%s_%d_out"):format(require_string, threadify.thread_id)),
+            out_channel = love.thread.getChannel(("%s_%d_out"):format(require_string, thread_id)),
         }
 
         -- behavior of module functions depends on no_responses
@@ -194,7 +186,7 @@ else
             thread_client.__index = function(t, key)
                 t[key] = function(...)
                     ---@type ThreadCommand
-                    local msg = { threadify.thread_id, -1, key, ... }
+                    local msg = { thread_id, -1, key, ... }
                     cmd_channel:push(msg)
                 end
                 return t[key]
@@ -203,7 +195,7 @@ else
             thread_client.__index = function(t, key)
                 t[key] = function(...)
                     ---@type ThreadCommand
-                    local msg = { threadify.thread_id, -1, key, ... }
+                    local msg = { thread_id, -1, key, ... }
                     return async.new_promise(function(resolve, reject)
                         local request_id = 1
                         while thread_client.resolvers[request_id] do
@@ -237,7 +229,7 @@ else
                 if result[2] then
                     thread_client.resolvers[result[1]](result[3])
                 else
-                    log(result[3])
+                    log:info(result[3])
                     thread_client.rejecters[result[1]](result[3])
                 end
                 thread_client.resolvers[result[1]] = nil

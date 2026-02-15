@@ -1,9 +1,9 @@
 local ltdiff = require("extlibs.ltdiff")
-local threadify = require("threadify")
+local thread_id = require("thread_id")
 
 local client = {}
 
-local update_channel = love.thread.getChannel("asset_index_updates_" .. threadify.thread_id)
+local update_channel = love.thread.getChannel("asset_index_updates_" .. thread_id)
 
 ---@type table<MirrorKey, unknown>
 client.mirror = {}

@@ -1,5 +1,5 @@
 local ltdiff = require("extlibs.ltdiff")
-local log = require("log")(...)
+local log = require("logging").get_logger(...)
 
 local mirror_server = {}
 
@@ -97,7 +97,7 @@ function mirror_server.sync_pending_assets()
                 love.timer.sleep(0.01)
                 timer = timer + 0.01
                 if timer > 1 then
-                    log(string.format("Asset %s is taking an unusual amount of time being mirrored", asset.key))
+                    log:info(string.format("Asset %s is taking an unusual amount of time being mirrored", asset.key))
                     timer = 0
                 end
             end

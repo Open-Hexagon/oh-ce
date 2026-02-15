@@ -1,11 +1,11 @@
-local log = require("log")(...)
+local log = require("logging").get_logger(...)
 local index = require("asset_system.index")
 local compat = require("asset_system.loaders.pack.compat")
 
 local pack_loaders = {}
 
 function pack_loaders.preload_packs(version)
-    log("Loading pack information for game" .. version)
+    log:info("Loading pack information for game" .. version)
     index.watch_file("packs" .. version)
     local pack_folders = love.filesystem.getDirectoryItems("packs" .. version)
     local packs = {}
@@ -65,7 +65,7 @@ function pack_loaders.pack_register(pack_folder_name, version)
             level_count = #levels,
         }
     else
-        log("Pack with id '" .. pack.id .. "' has unsatisfied dependencies!")
+        log:warning("Pack with id '" .. pack.id .. "' has unsatisfied dependencies!")
     end
 end
 

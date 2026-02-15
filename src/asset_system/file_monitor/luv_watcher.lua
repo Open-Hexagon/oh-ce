@@ -2,7 +2,7 @@ local success, uv = pcall(require, "luv")
 if not success then
     return false
 end
-local log = require("log")(...)
+local log = require("logging").get_logger(...)
 
 ---@type table<string, uv.uv_fs_event_t?>
 local event_handles = {}
@@ -24,7 +24,7 @@ return function(file_list)
             event_handles[path]:start(prefix .. path, {}, function(err, filename)
                 if err then
                     -- I have never seen that happen, so not sure what could go wrong here
-                    log("Error watching", filename, err)
+                    log:error("Error watching", filename, err)
                 end
                 -- since some editors move the file when saving (idk why)
                 -- the handle has to be recreated every time in case the inode of the file changed
