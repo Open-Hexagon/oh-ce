@@ -49,6 +49,8 @@ local function write_all(level, modname, ...)
     end
 end
 
+---@class Logger
+---@field modname string
 local Logger = {}
 Logger.__index = Logger
 

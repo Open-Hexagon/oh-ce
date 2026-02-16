@@ -1,12 +1,13 @@
-local log = require("log")(...)
-local async = require("async")
 local args = require("args")
+local logging = require("logging")
+local async = require("async")
 local threadify = require("threadify")
-local channel_callbacks = require("channel_callbacks")
 local audio = require("audio")
 local assets = require("asset_system")
 local video_encoder = require("game_handler.video")
 local player_tracker = require("server.player_tracker")
+
+local log = logging.get_logger("MAIN")
 
 local function add_require_path(path)
     love.filesystem.setRequirePath(love.filesystem.getRequirePath() .. ";" .. path)
@@ -42,7 +43,7 @@ local function event_loop(config, game_handler, ui)
         if name == "quit" then
             exit = a or 0
         elseif name == "threaderror" then
-            log("Error in thread: " .. b)
+            log:error("Error in thread: " .. b)
             exit = 1
         end
 
@@ -84,7 +85,7 @@ local render_replay = async(function(game_handler, replay, out_file, final_score
         if final_score then
             local now = love.timer.getTime()
             if now - last_print > 10 then
-                log("Rendering progress: " .. (100 * game_handler.get_timed_score() / final_score) .. "%")
+                log:info("Rendering progress: " .. (100 * game_handler.get_timed_score() / final_score) .. "%")
                 last_print = now
             end
         end
@@ -139,7 +140,7 @@ function love.run()
         local pack_folder = args.mount_pack_folder[i]
         local version = pack_folder[1]
         local path = pack_folder[2]
-        log("mounting " .. path .. " to packs" .. version)
+        log:info("mounting " .. path .. " to packs" .. version)
         love.filesystem.mountFullPath(path, "packs" .. version)
     end
 
@@ -155,7 +156,6 @@ function love.run()
         end
     end
 
-    local config = require("config")
     local global_config = require("global_config")
     local game_handler = require("game_handler")
 
@@ -172,35 +172,33 @@ function love.run()
             assets.mirror_client.update(true)
             assets.run_main_thread_task(true)
 
-            if replay_file then
-                -- replay may no longer exist if player got new pb
-                if love.filesystem.getInfo(replay_file) then
-                    local replay = Replay:new(replay_file)
-                    local out_file_path = love.filesystem.getSaveDirectory() .. "/" .. replay_file .. ".part.mp4"
-                    log("Got new #1 on '" .. replay.level_id .. "' from '" .. replay.pack_id .. "', rendering...")
-                    local aborted = false
-                    local success, error = pcall(function()
-                        local fn = async.busy_await(render_replay(game_handler, replay, out_file_path, replay.score))
-                        while fn() ~= 0 do
-                            local abort_hash = love.thread.getChannel("abort_replay_render"):pop()
-                            if abort_hash and abort_hash == replay_file:match(".*/(.*)") then
-                                aborted = true
-                                require("game_handler.video").stop()
-                                game_handler.stop()
-                                break
-                            end
+            -- replay may no longer exist if player got new pb
+            if replay_file and love.filesystem.getInfo(replay_file) then
+                local replay = Replay:new(replay_file)
+                local out_file_path = love.filesystem.getSaveDirectory() .. "/" .. replay_file .. ".part.mp4"
+                log:info("Got new #1 on '" .. replay.level_id .. "' from '" .. replay.pack_id .. "', rendering...")
+                local aborted = false
+                local success, error = pcall(function()
+                    local fn = async.busy_await(render_replay(game_handler, replay, out_file_path, replay.score))
+                    while fn() ~= 0 do
+                        local abort_hash = love.thread.getChannel("abort_replay_render"):pop()
+                        if abort_hash and abort_hash == replay_file:match(".*/(.*)") then
+                            aborted = true
+                            require("game_handler.video").stop()
+                            game_handler.stop()
+                            break
                         end
-                    end)
-                    if aborted or not success then
-                        if error then
-                            log("Got error:", error)
-                        end
-                        log("aborted rendering.")
-                        love.filesystem.remove(replay_file .. ".part.mp4")
-                    else
-                        os.rename(out_file_path, out_file_path:gsub("%.part%.mp4", "%.mp4"))
-                        log("done.")
                     end
+                end)
+                if aborted or not success then
+                    if error then
+                        log:warning("Got error:", error)
+                    end
+                    log:info("aborted rendering.")
+                    love.filesystem.remove(replay_file .. ".part.mp4")
+                else
+                    os.rename(out_file_path, out_file_path:gsub("%.part%.mp4", "%.mp4"))
+                    log:info("done.")
                 end
             end
             server_exit()
@@ -227,12 +225,12 @@ function love.run()
         local replay_path = database.get_replay_path()
         local scores = database.get_all_scores()
         for i = 1, #scores do
-            log(("checking %d / %d scores"):format(i, #scores))
+            log:info(("checking %d / %d scores"):format(i, #scores))
             local score = scores[i]
             local hash = score.replay_hash
             if hash then
                 if love.filesystem.exists("server/working_replays/" .. hash) then
-                    log("skipping, replay already in working replays folder.")
+                    log:info("skipping, replay already in working replays folder.")
                     worked = worked + 1
                 else
                     local path = replay_path .. hash:sub(1, 2) .. "/" .. hash
@@ -258,7 +256,7 @@ function love.run()
             end
             local should_stop = #pending == 0
             if love.timer.getTime() - last_time > 60 then
-                log("got nothing for a minute, aborting")
+                log:warning("got nothing for a minute, aborting")
                 should_stop = true
             else
                 for j = #pending, 1, -1 do
@@ -267,9 +265,9 @@ function love.run()
                     if result ~= nil then
                         last_time = love.timer.getTime()
                         table.remove(pending, j)
-                        log(("got result for %d, %d / %d to go."):format(i, #pending, #scores))
+                        log:info(("got result for %d, %d / %d to go."):format(i, #pending, #scores))
                         if result then
-                            log("worked, copying...")
+                            log:info("worked, copying...")
                             local hash = scores[i].replay_hash
                             local path = replay_path .. hash:sub(1, 2) .. "/" .. hash
                             Replay:new(path):save("server/working_replays/" .. hash)
@@ -280,7 +278,7 @@ function love.run()
             end
             love.timer.sleep(0.01)
             if should_stop then
-                log(("Done verifying. %d / %d scores worked."):format(worked, #scores))
+                log:info(("Done verifying. %d / %d scores worked."):format(worked, #scores))
                 for _ = 1, workers do
                     love.thread.getChannel("game_commands"):push({ "stop" })
                 end
@@ -310,7 +308,7 @@ function love.run()
         async.busy_await(game_handler.init())
         async.busy_await(game_handler.replay_start(args.replay_file))
         game_handler.run_until_death()
-        log("Score: " .. game_handler.get_score())
+        log:info("Score: " .. game_handler.get_score())
         return function()
             return 0
         end
@@ -325,60 +323,63 @@ function love.run()
         return async.busy_await(render_replay(game_handler, args.replay_file, "output.mp4"))
     end
 
-    local ui = require("ui")
-    ui.open_screen("loading")
-    global_config.init()
-    -- apply fullscreen setting initially
-    config.get_definitions().fullscreen.onchange(config.get("fullscreen"))
+    do
+        local ui = require("ui")
+        local config = require("config")
 
-    local fps_limit = config.get("fps_limit")
-    local delta_target = 1 / fps_limit
-    local last_time = love.timer.getTime()
+        ui.open_screen("loading")
+        global_config.init()
+        -- apply fullscreen setting initially
+        config.get_definitions().fullscreen.onchange(config.get("fullscreen"))
 
-    game_handler.init():done(function()
-        if args.replay_file then
-            async.busy_await(game_handler.replay_start(args.replay_file))
-            ui.open_screen("game")
-        else
-            ui.open_screen("levelselect")
-        end
-    end)
-    local level = require("ui.screens.levelselect.level")
+        local fps_limit = config.get("fps_limit")
+        local delta_target = 1 / fps_limit
+        local last_time = love.timer.getTime()
 
-    -- function is called every frame by love
-    return function()
-        local new_fps_limit = config.get("fps_limit")
-        if fps_limit ~= new_fps_limit then
-            fps_limit = new_fps_limit
-            delta_target = 1 / fps_limit
-        end
-        if fps_limit ~= 0 then
-            love.timer.sleep(delta_target - (love.timer.getTime() - last_time))
-            last_time = last_time + delta_target
-        end
-
-        threadify.update()
-        channel_callbacks.update()
-        ui.update(love.timer.getDelta())
-        audio.update()
-        assets.run_main_thread_task()
-        assets.mirror_client.update()
-
-        -- ensures tickrate on its own
-        game_handler.update(true)
-
-        if love.graphics.isActive() then
-            -- reset any transformations and make the screen black
-            love.graphics.origin()
-            love.graphics.clear(0, 0, 0, 1)
-            game_handler.draw()
-            if level.current_preview_active and not game_handler.is_running() then
-                level.current_preview:draw(true)
+        game_handler.init():done(function()
+            if args.replay_file then
+                async.busy_await(game_handler.replay_start(args.replay_file))
+                ui.open_screen("game")
+            else
+                ui.open_screen("levelselect")
             end
-            ui.draw()
-            love.graphics.present()
+        end)
+        local level = require("ui.screens.levelselect.level")
+
+        -- function is called every frame by love
+        return function()
+            local new_fps_limit = config.get("fps_limit")
+            if fps_limit ~= new_fps_limit then
+                fps_limit = new_fps_limit
+                delta_target = 1 / fps_limit
+            end
+            if fps_limit ~= 0 then
+                love.timer.sleep(delta_target - (love.timer.getTime() - last_time))
+                last_time = last_time + delta_target
+            end
+
+            threadify.update()
+            ui.update(love.timer.getDelta())
+            audio.update()
+            assets.run_main_thread_task()
+            assets.mirror_client.update()
+
+            -- ensures tickrate on its own
+            game_handler.update(true)
+
+            if love.graphics.isActive() then
+                -- reset any transformations and make the screen black
+                love.graphics.origin()
+                love.graphics.clear(0, 0, 0, 1)
+                game_handler.draw()
+                if level.current_preview_active and not game_handler.is_running() then
+                    level.current_preview:draw(true)
+                end
+                ui.draw()
+                love.graphics.present()
+            end
+            love.timer.step()
+            return event_loop(config, game_handler, ui)
         end
-        love.timer.step()
-        return event_loop(config, game_handler, ui)
     end
 end
