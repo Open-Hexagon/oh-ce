@@ -1,5 +1,5 @@
 require("platform")
-local log = require("logging").get_logger("threadify")
+local logging = require("logging")
 local modname, is_thread = ...
 
 ---@alias CallId integer
@@ -20,6 +20,10 @@ local modname, is_thread = ...
 if is_thread then
     -- Threadified module thread.
     -- There can only be one of these per threadified module.
+
+    local log = logging.get_logger(select(4, ...))
+
+    log:debug("begin new threadify thread")
 
     local send_responses = not select(3, ...) -- this was once no_responses passed in by threadify.require
     ---@type ThreadAPI
@@ -115,6 +119,7 @@ else
     -- Each has a unique id
 
     local async = require("async")
+    local log = logging.get_logger("threadify")
 
     local threadify = {}
 
@@ -161,7 +166,9 @@ else
             end
 
             if not thread:isRunning() then
-                thread:start(require_string, true, no_responses)
+                local thread_identity = tostring(thread)
+                log:debug("starting new " .. thread_identity)
+                thread:start(require_string, true, no_responses, thread_identity)
             end
 
             channel:push(all_threads)
