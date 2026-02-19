@@ -155,19 +155,18 @@ else
 
         -- get thread if already running, start it if not
         -- this must be done atomically so multiple threads can't create multiple child threads of the same module
-        local thread
         threads_channel:performAtomic(function(channel)
             local all_threads = channel:pop() or {}
+            local thread = all_threads[require_string]
+            local thread_identity
 
-            thread = all_threads[require_string]
             if not thread then
                 thread = love.thread.newThread("threadify.lua")
                 all_threads[require_string] = thread
             end
 
             if not thread:isRunning() then
-                local thread_identity = tostring(thread)
-                log:debug("starting new " .. thread_identity)
+                thread_identity = tostring(thread)
                 thread:start(require_string, true, no_responses, thread_identity)
             end
 

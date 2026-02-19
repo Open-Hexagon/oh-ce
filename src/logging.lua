@@ -70,6 +70,11 @@ function Logger:error(...)
     write_all(logging.ERROR, self.modname, ...)
 end
 
+function Logger:not_implemented()
+    local loc_info = debug.getinfo(2, "Sl")
+    write_all(logging.ERROR, self.modname, string.format("%s:%s: not implemented", loc_info.short_src, loc_info.currentline))
+end
+
 ---Add a stream to log to. The preamble format string should contain exactly 4 '%s' format options.
 ---These are replaced in order of: thread_id, timestamp, level label, and modname.
 ---@param stream stream any table like object that has a write method e.g. io.stderr
