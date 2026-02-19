@@ -1,3 +1,15 @@
+local function add_require_path(path)
+    love.filesystem.setRequirePath(love.filesystem.getRequirePath() .. ";" .. path)
+end
+
+local function add_c_require_path(path)
+    love.filesystem.setCRequirePath(love.filesystem.getCRequirePath() .. ";" .. path)
+end
+
+-- paths must be set up before any threads are created
+add_require_path("extlibs/?.lua")
+add_c_require_path("lib/??")
+
 local args = require("args")
 local logging = require("logging")
 local async = require("async")
@@ -8,14 +20,6 @@ local video_encoder = require("game_handler.video")
 local player_tracker = require("server.player_tracker")
 
 local log = logging.get_logger("MAIN")
-
-local function add_require_path(path)
-    love.filesystem.setRequirePath(love.filesystem.getRequirePath() .. ";" .. path)
-end
-
-local function add_c_require_path(path)
-    love.filesystem.setCRequirePath(love.filesystem.getCRequirePath() .. ";" .. path)
-end
 
 local exit_channel = love.thread.getChannel("scheduled_exit")
 
@@ -124,8 +128,6 @@ function love.run()
     love.filesystem.setSymlinksEnabled(false)
 
     -- find libs
-    add_require_path("extlibs/?.lua")
-    add_c_require_path("lib/??")
 
     if args.migrate then
         -- migrate a ranking database from the old game to the new format
