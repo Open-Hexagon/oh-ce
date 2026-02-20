@@ -232,6 +232,7 @@ function game_handler.process_event(name, ...)
         local key = ...
         if not current_game.preview_mode then
             if key == "exit" then
+                -- TODO: remove
                 local death_overlay = require("ui.overlay.death")
                 if death_overlay.is_open then
                     death_overlay.layout.elements[2]:click()
@@ -240,10 +241,12 @@ function game_handler.process_event(name, ...)
                         current_game.death_callback()
                     end
                     game_handler.stop()
+                    -- TODO: remove
                     require("ui.screens.levelselect.score").refresh()
                     game_handler.onupdate()
                 end
             elseif key == "restart" then
+                -- TODO: remove
                 local death_overlay = require("ui.overlay.death")
                 if death_overlay.is_open then
                     death_overlay.layout.elements[1]:click()

@@ -1,6 +1,7 @@
 local args = require("args")
 local controls
 if not args.headless then
+    -- TODO: remove
     controls = require("ui.screens.game.controls")
 end
 local touch = {

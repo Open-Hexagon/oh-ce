@@ -54,6 +54,7 @@ add_setting("UI", "gui_scale", 1, {
     max = 2,
     step = 0.1,
     onchange = function()
+        -- TODO: remove
         local ui = require("ui")
         if not ui.get_grabbed() then
             ui.process_event("resize")
@@ -63,6 +64,7 @@ add_setting("UI", "gui_scale", 1, {
 })
 add_setting("UI", "area_based_gui_scale", false, {
     onchange = function()
+        -- TODO: remove
         require("ui").process_event("resize")
         return true
     end,
@@ -71,9 +73,11 @@ add_setting("UI", "background_preview", "minimal", {
     options = { "minimal", "full" },
     onchange = function(value)
         if value == "full" then
+            -- TODO: remove
             require("ui.screens.levelselect.level").resume_preview()
             require("ui.screens.levelselect.level").current_preview_active = false
         else
+            -- TODO: remove
             require("game_handler").stop()
             require("ui.screens.levelselect.level").current_preview_active = true
         end

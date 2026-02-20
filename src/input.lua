@@ -3,6 +3,7 @@ local args = require("args")
 local config = require("config")
 local buttons
 if not args.headless then
+    -- TODO: remove
     buttons = require("ui.screens.game.controls")
 end
 -- wrapper for game inputs to automate replay recording
