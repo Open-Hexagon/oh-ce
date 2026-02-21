@@ -1,5 +1,5 @@
 local element = require("ui.elements.element")
-local signal = require("ui.anim.signal")
+local signal = require("ui2.anim.signal")
 local theme = require("ui.theme")
 local toggle = {}
 toggle.__index = setmetatable(toggle, { __index = element })

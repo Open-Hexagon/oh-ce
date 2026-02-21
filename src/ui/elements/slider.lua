@@ -1,6 +1,6 @@
 local keyboard_navigation = require("ui.keyboard_navigation")
 local element = require("ui.elements.element")
-local signal = require("ui.anim.signal")
+local signal = require("ui2.anim.signal")
 local extmath = require("ui.extmath")
 local theme = require("ui.theme")
 local slider = {}

@@ -1,5 +1,5 @@
 local animated_transform = require("ui.anim.transform")
-local signal = require("ui.anim.signal")
+local signal = require("ui2.anim.signal")
 local update_expand = require("ui.elements.element")._update_child_expand
 local flex = require("ui.layout.flex")
 

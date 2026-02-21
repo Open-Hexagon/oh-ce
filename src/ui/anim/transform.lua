@@ -1,4 +1,4 @@
-local signal = require("ui.anim.signal")
+local signal = require("ui2.anim.signal")
 ---@class animated_transform
 ---@field queue boolean
 ---@field translation table

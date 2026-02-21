@@ -1,7 +1,7 @@
-local extmath = require("ui.extmath")
+local extmath = require("ui2.extmath")
+local ease = require("ui2.anim.ease")
 
 local weak_values = { __mode = "v" }
-local weak_keys = { __mode = "k" }
 
 local updateable = setmetatable({}, weak_values)
 local persistent = {}
@@ -23,6 +23,12 @@ end
 ---Turns off persistence, allowing the signal to be garbage collected.
 function signal.Signal:no_persist()
     persistent[self] = nil
+end
+
+---Sets the value of the signal. If the signal is being updated, this value will get overwritten.
+---@param value number
+function signal.Signal:set_immediate_value(value)
+    self.value = value
 end
 
 ---@alias signalparam number|function|table|Signal
@@ -48,6 +54,20 @@ function signal.Waveform:update(dt)
         self.t = self.t - 1
     end
     self.value = self.curve(self.t)
+end
+
+---Sets the progress of the waveform. This is a number indicating percentage completed of the current period.
+---e.g. Setting progress to 0 restarts the current period
+---@param t number
+function signal.Waveform:set_progress(t)
+    self.t = t % 1
+end
+
+---Returns thr progress. This is a number indicating percentage completed of the current period.
+---@return number
+---@nodiscard
+function signal.Waveform:get_progress()
+    return self.t
 end
 
 ---Suspends updates
@@ -79,7 +99,7 @@ local KEYFRAME_EVENT, WAVEFORM_EVENT, WAIT_EVENT, SET_VALUE_EVENT, CALL_EVENT, R
 ---@field private current_event Event
 ---@field private last_event Event
 ---@field private value number
----@field private processing `KEYFRAME_EVENT`|`WAVEFORM_EVENT`|`WAIT_EVENT`|`RELATIVE_KEYFRAME_EVENT`|nil
+---@field private processing `KEYFRAME_EVENT`|`WAVEFORM_EVENT`|`WAIT_EVENT`|`RELATIVE_KEYFRAME_EVENT`
 ---@field private start_value number
 signal.Queue = setmetatable({}, signal.Signal)
 
@@ -92,27 +112,22 @@ function signal.Queue:keyframe(duration, value, easing)
     local newevent = {
         type = KEYFRAME_EVENT,
         value = value,
-        fn = easing or function(t)
-            return t
-        end,
+        fn = easing or ease.linear,
         freq = 1 / duration,
     }
     self.last_event.next = newevent
     self.last_event = newevent
 end
 
---- TODO: Adds a keyframe event which works relative to the current value.
 ---@param duration number Event duration
 ---@param value number Relative target value
 ---@param easing? function Easing function
 function signal.Queue:relative_keyframe(duration, value, easing)
     ---@type Event
     local newevent = {
-        type = KEYFRAME_EVENT,
+        type = RELATIVE_KEYFRAME_EVENT,
         value = value,
-        fn = easing or function(t)
-            return t
-        end,
+        fn = easing or ease.linear,
         freq = 1 / duration,
     }
     self.last_event.next = newevent
@@ -170,13 +185,6 @@ function signal.Queue:call(fn)
     self.last_event = newevent
 end
 
----Sets the value of the queue. If events that update the value are being processed,
----this value will get overwritten on the next update.
----@param value number
-function signal.Queue:set_immediate_value(value)
-    self.value = value
-end
-
 ---Stops the queue and deletes all events. The value remains at its last value.
 function signal.Queue:stop()
     self.current_event = self.last_event
@@ -206,17 +214,14 @@ function signal.Queue:update(dt)
     if self.suspended then
         return
     end
+
+    -- process non-instant events
     if self.processing then
         self.t = self.t + self.current_event.next.freq * dt
         if self.t < 1 then
-            if self.processing == KEYFRAME_EVENT then
-                self.value =
-                    extmath.lerp(self.start_value, self.current_event.next.value, self.current_event.next.fn(self.t))
-            elseif self.processing == WAVEFORM_EVENT then
-                self.value = self.current_event.next.fn(self.t)
-            end
-            return
+            goto update_value
         end
+        -- reached the end of this event
         if self.processing == KEYFRAME_EVENT then
             self.value = self.current_event.next.value
         elseif self.processing == WAVEFORM_EVENT then
@@ -224,30 +229,50 @@ function signal.Queue:update(dt)
         end
         self.current_event = self.current_event.next
     end
+
     if not self.current_event.next then
-        self.t, self.processing = 1, nil
-        return
+        goto no_more_events
     end
+
+    -- process instant events
     while self.current_event.next.type == CALL_EVENT or self.current_event.next.type == SET_VALUE_EVENT do
         if self.current_event.next.type == CALL_EVENT then
             self.current_event.next.fn()
-        else
+        elseif self.current_event.next.type == SET_VALUE_EVENT then
             self.value = self.current_event.next.value
+        else
+            error("invalid event")
         end
         self.current_event = self.current_event.next
         if not self.current_event.next then
-            self.t, self.processing = 1, nil
-            return
+            goto no_more_events
         end
     end
+
+    -- prepare the next non-instant event
     self.t = self.t - 1
     self.processing = self.current_event.next.type
+    self.start_value = self.value -- only relevant for KEYFRAME_EVENT
+    if self.processing == RELATIVE_KEYFRAME_EVENT then
+        -- if this is a RELATIVE_KEYFRAME_EVENT, convert the event into a regular one
+        self.current_event.next.value = self.current_event.next.value + self.value
+        self.processing = KEYFRAME_EVENT
+    end
+    -- fall through for first value update
+
+    ::update_value::
     if self.processing == KEYFRAME_EVENT then
-        self.start_value = self.value
         self.value = extmath.lerp(self.start_value, self.current_event.next.value, self.current_event.next.fn(self.t))
     elseif self.processing == WAVEFORM_EVENT then
         self.value = self.current_event.next.fn(self.t)
     end
+
+    do
+        return
+    end
+
+    ::no_more_events::
+    self.t, self.processing = 1, nil
 end
 
 ---Suspends updates
@@ -317,20 +342,25 @@ end
 
 --#endregion
 
--- Square wave function with period 1 and amplitude 1 at value `x` with duty cycle `d`.
-local square = function(x, d)
-    local _, frac = math.modf(x)
-    if x < 0 then
-        frac = 1 + frac
-    end
-    return -extmath.sgn(frac - extmath.clamp(d, 0, 1))
+local M = {}
+
+---Square wave function with period 1 and peak amplitude 1 (not peak-to-peak)
+---@param x number input
+---@param d number duty cycle, range [0, 1]
+---@return integer
+---@nodiscard
+function M.square(x, d)
+    return -extmath.sgn(x % 1 - extmath.clamp(d, 0, 1))
 end
 
--- Asymmetrical triangle wave function with period 1 and amplitude 1 at value `x`.
--- Asymmetry can be adjusted with `d`.
--- An asymmetry of 1 is equivalent to sawtooth wave.
--- An asymmetry of 0 is equivalent to a reversed sawtooth wave.
-local triangle = function(x, d)
+---Asymmetrical triangle wave function with period 1 and amplitude 1 (not peak-to-peak).
+---An asymmetry of 1 is equivalent to sawtooth wave.
+---An asymmetry of 0 is equivalent to a time reversed sawtooth wave.
+---@param x number input
+---@param d number asymmetry, range [0, 1]
+---@return number
+---@nodiscard
+function M.triangle(x, d)
     x = x % 1
     d = extmath.clamp(d, 0, 1)
     local p, x2 = 1 - d, 2 * x
@@ -343,12 +373,13 @@ local triangle = function(x, d)
     end
 end
 
--- Sawtooth wave function with period 1 and amplitude 1 at value x.
-local sawtooth = function(x)
+---Sawtooth wave function with period 1 and amplitude 1 (not peak-to-peak)
+---@param x number input
+---@return number
+---@nodiscard
+function M.sawtooth(x)
     return 2 * (x - math.floor(0.5 + x))
 end
-
-local M = {}
 
 local const_signal_cache = setmetatable({}, weak_values)
 
@@ -357,6 +388,7 @@ local const_signal_cache = setmetatable({}, weak_values)
 ---If value is already a signal, returns that signal.
 ---@param value signalparam
 ---@return Signal|function
+---@nodiscard
 function M.new_signal(value)
     if type(value) == "number" then
         if const_signal_cache[value] then
@@ -375,6 +407,7 @@ end
 ---@param freq signalparam Waveform frequency
 ---@param curve function A function that accepts one argument ranging from [0, 1] and returns a number.
 ---@return Waveform
+---@nodiscard
 function M.new_waveform(freq, curve)
     local newinst = setmetatable({
         t = 0,
@@ -390,6 +423,7 @@ end
 ---Creates a new queue signal
 ---@param value number? Starting value
 ---@return Queue
+---@nodiscard
 function M.new_queue(value)
     local dummy_event = {}
     local newinst = setmetatable({
@@ -410,6 +444,7 @@ end
 ---@param b signalparam
 ---@param t signalparam
 ---@return Lerp
+---@nodiscard
 function M.lerp(a, b, t)
     local newinst = setmetatable({
         a = M.new_signal(a),
@@ -425,6 +460,7 @@ end
 ---@param a signalparam
 ---@param b signalparam
 ---@return Add
+---@nodiscard
 function M.add(a, b)
     local newinst = setmetatable({
         a = M.new_signal(a),
@@ -439,6 +475,7 @@ end
 ---@param a signalparam
 ---@param b signalparam
 ---@return Sub
+---@nodiscard
 function M.sub(a, b)
     local newinst = setmetatable({
         a = M.new_signal(a),
@@ -453,6 +490,7 @@ end
 ---@param a signalparam
 ---@param b signalparam
 ---@return Mul
+---@nodiscard
 function M.mul(a, b)
     local newinst = setmetatable({
         a = M.new_signal(a),
@@ -467,6 +505,7 @@ end
 ---@param a signalparam
 ---@param b signalparam
 ---@return Div
+---@nodiscard
 function M.div(a, b)
     local newinst = setmetatable({
         a = M.new_signal(a),

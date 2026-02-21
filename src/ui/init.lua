@@ -1,4 +1,4 @@
-local signal = require("ui.anim.signal")
+local signal = require("ui2.anim.signal")
 local overlay = require("ui.overlay")
 local overlays = overlay.overlays
 local game_handler = require("game_handler")

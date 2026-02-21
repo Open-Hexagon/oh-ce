@@ -1,6 +1,6 @@
 local animated_transform = require("ui.anim.transform")
-local signal = require("ui.anim.signal")
-local ease = require("ui.anim.ease")
+local signal = require("ui2.anim.signal")
+local ease = require("ui2.anim.ease")
 local extmath = require("ui.extmath")
 local update_expand = require("ui.elements.element")._update_child_expand
 

@@ -1,6 +1,6 @@
 local element = require("ui.elements.element")
 local preview = require("ui.screens.levelselect.level_preview")
-local signal = require("ui.anim.signal")
+local signal = require("ui2.anim.signal")
 local theme = require("ui.theme")
 local level_preview = {}
 level_preview.__index = setmetatable(level_preview, {

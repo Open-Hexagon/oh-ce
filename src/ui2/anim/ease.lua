@@ -1,4 +1,4 @@
-local extmath = require("ui.extmath")
+local extmath = require("ui2.extmath")
 
 local ease = {}
 

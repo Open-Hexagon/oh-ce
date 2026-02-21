@@ -1,6 +1,6 @@
 local keyboard_navigation = require("ui.keyboard_navigation")
 local game_handler = require("game_handler")
-local signal = require("ui.anim.signal")
+local signal = require("ui2.anim.signal")
 local flex = require("ui.layout.flex")
 local config = require("config")
 
