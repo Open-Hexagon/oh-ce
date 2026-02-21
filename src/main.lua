@@ -10,6 +10,7 @@ end
 add_require_path("extlibs/?.lua")
 add_c_require_path("lib/??")
 
+require("error_handler")
 local args = require("args")
 local logging = require("logging")
 local async = require("async")
@@ -39,7 +40,11 @@ local function server_exit()
     end
 end
 
-local function event_loop(config, game_handler, ui)
+---comment
+---@param config any
+---@param ... fun(name:string, ...:any)
+---@return integer?
+local function event_loop(config, ...)
     love.event.pump()
     for name, a, b, c, d, e, f in love.event.poll() do
         -- check exit conditions
@@ -47,7 +52,7 @@ local function event_loop(config, game_handler, ui)
         if name == "quit" then
             exit = a or 0
         elseif name == "threaderror" then
-            log:error("Error in thread: " .. b)
+            log:error(string.format("Error in %s: %s", tostring(a), b))
             exit = 1
         end
 
@@ -63,17 +68,16 @@ local function event_loop(config, game_handler, ui)
         end
 
         -- pass events to other modules
-        if game_handler then
-            game_handler.process_event(name, a, b, c, d, e, f)
-        end
-        if ui then
-            ui.process_event(name, a, b, c, d, e, f)
+        for i = 1, select("#", ...) do
+            local process_event = select(i, ...)
+            process_event(name, a, b, c, d, e, f)
         end
     end
 end
 
 local render_replay = async(function(game_handler, replay, out_file, final_score)
     game_handler.set_game_dimensions(1920, 1080)
+    -- TODO: remove
     local ui = require("ui")
     ui.open_screen("game")
     local fps = 60
@@ -126,8 +130,6 @@ end)
 function love.run()
     -- make sure no level accesses malicious files via symlinks
     love.filesystem.setSymlinksEnabled(false)
-
-    -- find libs
 
     if args.migrate then
         -- migrate a ranking database from the old game to the new format
@@ -326,10 +328,20 @@ function love.run()
     end
 
     do
-        local ui = require("ui")
         local config = require("config")
 
-        ui.open_screen("loading")
+        local ohui = require("ohui")
+        local ui2 = require("ui2")
+        local loading = require("ui2.menu.loading")
+        local debug = require("ui2.menu.debug")
+        local level_select = require("ui2.menu.level_select")
+
+        ohui.theme.set_default("font_path", "assets/font/open-pentagon.ttf")
+        ohui.theme.set_default("icon_font_path", "assets/font/open-pentagon.ttf")
+
+        ohui.layer.set_pinned_layer(debug)
+        ohui.layer.push(loading)
+
         global_config.init()
         -- apply fullscreen setting initially
         config.get_definitions().fullscreen.onchange(config.get("fullscreen"))
@@ -341,27 +353,28 @@ function love.run()
         game_handler.init():done(function()
             if args.replay_file then
                 async.busy_await(game_handler.replay_start(args.replay_file))
-                ui.open_screen("game")
+                log:not_implemented()
+                -- ui.open_screen("game")
             else
-                ui.open_screen("levelselect")
+                -- log:not_implemented()
+                ohui.layer.pop()
+                ohui.layer.push(level_select)
+                -- ui.open_screen("levelselect")
             end
         end)
-        local level = require("ui.screens.levelselect.level")
 
         -- function is called every frame by love
         return function()
-            local new_fps_limit = config.get("fps_limit")
-            if fps_limit ~= new_fps_limit then
-                fps_limit = new_fps_limit
-                delta_target = 1 / fps_limit
-            end
-            if fps_limit ~= 0 then
-                love.timer.sleep(delta_target - (love.timer.getTime() - last_time))
-                last_time = last_time + delta_target
-            end
+            local new_fps_limit, exit_code
+
+            -- measure tickrate
+            love.timer.step()
+
+            -- process events
+            exit_code = event_loop(config, game_handler.process_event, ohui.push_event)
 
             threadify.update()
-            ui.update(love.timer.getDelta())
+            ui2.update(love.timer.getDelta())
             audio.update()
             assets.run_main_thread_task()
             assets.mirror_client.update()
@@ -374,14 +387,27 @@ function love.run()
                 love.graphics.origin()
                 love.graphics.clear(0, 0, 0, 1)
                 game_handler.draw()
-                if level.current_preview_active and not game_handler.is_running() then
-                    level.current_preview:draw(true)
-                end
-                ui.draw()
+                -- if level.current_preview_active and not game_handler.is_running() then
+                --     level.current_preview:draw(true)
+                -- end
+
+                ohui.run()
+
                 love.graphics.present()
             end
-            love.timer.step()
-            return event_loop(config, game_handler, ui)
+
+            -- ensure tickrate
+            new_fps_limit = config.get("fps_limit")
+            if fps_limit ~= new_fps_limit then
+                fps_limit = new_fps_limit
+                delta_target = 1 / fps_limit
+            end
+            if fps_limit ~= 0 then
+                love.timer.sleep(delta_target - (love.timer.getTime() - last_time))
+                last_time = last_time + delta_target
+            end
+
+            return exit_code
         end
     end
 end
