@@ -139,7 +139,6 @@ function love.errorhandler(msg)
         end
 
         ::quit::
-        logging.flush_all()
         logging.close_all()
         return 1
     end

@@ -3,8 +3,8 @@ local args = require("args")
 
 ---@alias stream {
 ---  write:fun(self:unknown, ...:any),
----  flush:fun(self:unknown),
----  close:fun(self:unknown),
+---  flush:fun(self:unknown)?,
+---  close:fun(self:unknown)?,
 ---}
 
 local logging = {
@@ -99,13 +99,18 @@ end
 
 function logging.flush_all()
     for i = 1, #streams do
-        streams[i]:flush()
+        if streams[i].flush then
+            streams[i]:flush()
+        end
     end
 end
 
 function logging.close_all()
+    logging.flush_all()
     for i = 1, #streams do
-        streams[i]:close()
+        if streams[i].close then
+            streams[i]:close()
+        end
     end
 end
 
