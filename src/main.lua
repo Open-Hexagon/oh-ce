@@ -328,19 +328,19 @@ function love.run()
     end
 
     do
+
+
         local config = require("config")
 
         local ohui = require("ohui")
         local ui2 = require("ui2")
-        local loading = require("ui2.menu.loading")
-        local debug = require("ui2.menu.debug")
-        local level_select = require("ui2.menu.level_select")
+        ohui.settings.scale = 1
 
         ohui.theme.set_default("font_path", "assets/font/open-pentagon.ttf")
         ohui.theme.set_default("icon_font_path", "assets/font/open-pentagon.ttf")
 
-        ohui.layer.set_pinned_layer(debug)
-        ohui.layer.push(loading)
+        ohui.layer.set_pinned_layer(require("ui2.menu.debug"))
+        ohui.layer.push(require("ui2.menu.loading"))
 
         global_config.init()
         -- apply fullscreen setting initially
@@ -358,7 +358,7 @@ function love.run()
             else
                 -- log:not_implemented()
                 ohui.layer.pop()
-                ohui.layer.push(level_select)
+                ohui.layer.push(require("ui2.menu.level_select"))
                 -- ui.open_screen("levelselect")
             end
         end)
