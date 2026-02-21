@@ -9,7 +9,6 @@ local entry = require("ui.elements.entry")
 local progress = require("ui.elements.progress")
 local collapse = require("ui.layout.collapse")
 local threadify = require("threadify")
-local channel_callbacks = require("channel_callbacks")
 local pack_elements = require("ui.screens.levelselect.packs")
 local pack_details = require("ui.overlay.packs.details")
 local assets = require("asset_system")
@@ -107,11 +106,6 @@ local load_pack_chunk = async(function()
             style = { background_color = { 0, 0, 0, 0 } },
         })
         local progress_collapse = collapse:new(progress_bar)
-        local channel_name = string.format("pack_download_progress_%d_%s", pack.game_version, pack.folder_name)
-        channel_callbacks.register(channel_name, function(percent)
-            progress_bar.percentage = percent
-            progress_collapse:toggle(true)
-        end)
         local download_func = async(function(self)
             ongoing_downloads[pack.game_version] = ongoing_downloads[pack.game_version] or {}
             if ongoing_downloads[pack.game_version][pack.folder_name] then

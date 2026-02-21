@@ -1,7 +1,6 @@
 local flex = require("ui.layout.flex")
 local quad = require("ui.elements.quad")
 local label = require("ui.elements.label")
-local channel_callbacks = require("channel_callbacks")
 
 local bar_label = label:new("Loading...", { wrap = true })
 local bar = flex:new({
@@ -31,16 +30,5 @@ local root = flex:new({
     }),
     label:new(""),
 }, { align_items = "center", direction = "column", size_ratios = { 3, 1, 3 } })
-
-channel_callbacks.register("asset_loading_text", function(text)
-    bar_label.raw_text = text
-    bar_label.parent:mutated()
-end)
-
-channel_callbacks.register("asset_loading_progress", function(progress)
-    bar.size_ratios[1] = progress
-    bar.size_ratios[2] = 1 - progress
-    root:mutated()
-end)
 
 return root
