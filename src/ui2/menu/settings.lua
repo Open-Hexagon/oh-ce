@@ -12,6 +12,7 @@ local config = require("config")
 local categories = config.categories
 local scroll = ui.area_element.scroll
 local id = ui.new_id_table()
+local toggle = ui.element.toggle
 
 local settings = {}
 
@@ -53,15 +54,54 @@ function settings.on_pop(release)
     slide_in_out:call(release)
 end
 
+local function draw_setting(property)
+    local sid, state
+    cursor.push()
+    if type(property.default) == "boolean" then
+        sid = mnav.declare_sensor_id()
+        state = id[property.name]
+        cursor.start_area()
+        cursor.height = 24
+        cursor.auto_reshape = "width"
+        cursor.change_anchor(0, 0.5)
+        toggle(state, sid)
+        cursor.shift_right(10)
+
+        draw_by_cursor.label(
+            property.display_name,
+            24,
+            "left",
+            false,
+            state.on and theme.accent_color or theme.text_color
+        )
+        if mnav.is_hovering(sid) then
+            draw_by_cursor.bottom_line(theme.accent_color, 2, "center")
+        end
+
+        cursor.finish_area()
+        mnav.make_sensor(sid)
+        if property.tooltip then
+            tooltip("right", property.tooltip, 20, "left")
+        end
+    else
+        draw_by_cursor.label(property.display_name, 24, "left", false)
+        mnav.make_sensor()
+        tooltip("right", ".............................................................", 24, "left")
+    end
+    cursor.pop()
+end
+
 -- scratch variables
 local A
 
 function settings.main()
+    local screen_width = cursor.width
+
     cursor.push_translation(slide_in_out(), 0) -- (1)
 
     cursor.push()
 
-    cursor.width = menu_width
+    cursor.width = math.min(menu_width, screen_width)
     draw_by_cursor.rectangle(bg_color)
     draw_by_cursor.right_line(theme.white, 2, "inside")
 
@@ -116,9 +156,7 @@ function settings.main()
         A = cursor.x
         cursor.x = cursor.x + 16
         for j = 1, #category do
-            draw_by_cursor.label(category[j].display_name, 24, "left", false)
-            mnav.make_sensor()
-            tooltip("right", ".............................................................", 24, "left")
+            draw_setting(category[j])
             cursor.shift_down(10)
         end
         cursor.x = A

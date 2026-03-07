@@ -65,13 +65,17 @@ local function add_setting(category, name, default, options)
     property.name = name
     property.default = default
     property.category = category
-    property.display_name = name:gsub("_", " "):gsub("^%l", string.upper)
+    if not property.display_name then
+        property.display_name = name:gsub("_", " "):gsub("^%l", string.upper)
+    end
 
     properties[name] = property
     table.insert(categories[category], property)
 end
 
 -- ! setting definitions, ones that were not visible in the menu of the old games (and still aren't) are marked as "missing"
+
+--#region Gameplay settings
 
 add_setting("Gameplay", "game_resolution_scale", 1, {
     min = 1,
@@ -81,7 +85,62 @@ add_setting("Gameplay", "game_resolution_scale", 1, {
         require("game_handler").process_event("resize", love.graphics.getDimensions())
     end,
 })
+
+add_setting("Gameplay", "official_mode", true, { game_version = { 192, 20, 21, 3 }, tooltip = [[
+On: For competition. Scores are saved and recorded to leaderboards. Forces certain default settings to keep things fair.
+Off: Enables more settings but scores are not saved. Useful for level creation/debugging.]] })
+add_setting("Gameplay", "beatpulse", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting("Gameplay", "pulse", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting("Gameplay", "player_size", 7.3, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
+add_setting("Gameplay", "player_speed", 9.45, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
+add_setting("Gameplay", "player_focus_speed", 4.625, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
+add_setting("Gameplay", "black_and_white", false, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting("Gameplay", "3D_enabled", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting("Gameplay", "3D_multiplier", 1, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
+add_setting("Gameplay", "3D_max_depth", 100, { can_change_in_offical = false, game_version = { 192, 20 } }) -- missing
+add_setting("Gameplay", "background", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting("Gameplay", "invincible", false, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting("Gameplay", "rotation", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting("Gameplay", "messages", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting("Gameplay", "player_tilt_intensity", 1, { game_version = 21, min = 0, max = 5, step = 0.1 })
+add_setting("Gameplay", "swap_blinking_effect", true, { game_version = 21 })
+add_setting("Gameplay", "flash", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting("Gameplay", "shaders", true, { can_change_in_offical = false, game_version = 21 })
+add_setting("Gameplay", "camera_shake_mult", 1, { game_version = 21 }) -- missing
+add_setting("Gameplay", "text_scale", 1, { game_version = 21, min = 0.1, max = 4, step = 0.05 })
+add_setting("Gameplay", "show_player_trail", false, { game_version = 21 })
+add_setting(
+    "Gameplay",
+    "player_trail_decay",
+    3,
+    { game_version = 21, dependencies = { show_player_trail = true }, min = 0.5, max = 50, step = 2.5 }
+)
+add_setting(
+    "Gameplay",
+    "player_trail_scale",
+    0.9,
+    { game_version = 21, dependencies = { show_player_trail = true }, min = 0.05, max = 1, step = 0.05 }
+)
+add_setting(
+    "Gameplay",
+    "player_trail_alpha",
+    35,
+    { game_version = 21, dependencies = { show_player_trail = true }, min = 0, max = 255, step = 1 }
+)
+add_setting(
+    "Gameplay",
+    "player_trail_has_swap_color",
+    true,
+    { game_version = 21, dependencies = { show_player_trail = true } }
+)
+add_setting("Gameplay", "show_swap_particles", true, { game_version = 21 })
+
+--#endregion
+
+--#region UI settings
+
 add_setting("UI", "gui_scale", 1, {
+    display_name = "GUI scale",
     min = 0.5,
     max = 2,
     step = 0.1,
@@ -117,6 +176,9 @@ add_setting("UI", "background_preview", "minimal", {
 })
 add_setting("UI", "background_preview_has_text", false, { dependencies = { background_preview = "full" } })
 add_setting("UI", "in-game_buttons", true)
+
+--#endregion
+
 add_setting("Audio", "background_preview_music_volume", 0, {
     min = 0,
     max = 1,
@@ -145,22 +207,9 @@ add_setting("Display", "fullscreen", "windowed", {
         end
     end,
 })
-add_setting("Gameplay", "official_mode", true, { game_version = { 192, 20, 21, 3 } })
 add_setting("Audio", "sound_volume", 1, { game_version = { 192, 20, 21, 3 }, min = 0, max = 1, step = 0.05 })
 add_setting("Audio", "music_volume", 1, { game_version = { 192, 20, 21, 3 }, min = 0, max = 1, step = 0.05 })
-add_setting("Gameplay", "beatpulse", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
-add_setting("Gameplay", "pulse", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
-add_setting("Gameplay", "player_size", 7.3, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
-add_setting("Gameplay", "player_speed", 9.45, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
-add_setting("Gameplay", "player_focus_speed", 4.625, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
-add_setting("Gameplay", "black_and_white", false, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
-add_setting("Gameplay", "3D_enabled", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
-add_setting("Gameplay", "3D_multiplier", 1, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
-add_setting("Gameplay", "3D_max_depth", 100, { can_change_in_offical = false, game_version = { 192, 20 } }) -- missing
-add_setting("Gameplay", "background", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
-add_setting("Gameplay", "invincible", false, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
-add_setting("Gameplay", "rotation", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
-add_setting("Gameplay", "messages", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+
 add_setting("Audio", "sync_music_to_dm", true, { game_version = { 20, 21 } })
 add_setting("Audio", "music_speed_mult", 1, {
     game_version = 21,
@@ -172,38 +221,6 @@ add_setting("Audio", "music_speed_mult", 1, {
     end,
 })
 add_setting("Audio", "play_swap_sound", true, { game_version = 21 })
-add_setting("Gameplay", "player_tilt_intensity", 1, { game_version = 21, min = 0, max = 5, step = 0.1 })
-add_setting("Gameplay", "swap_blinking_effect", true, { game_version = 21 })
-add_setting("Gameplay", "flash", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
-add_setting("Gameplay", "shaders", true, { can_change_in_offical = false, game_version = 21 })
-add_setting("Gameplay", "camera_shake_mult", 1, { game_version = 21 }) -- missing
-add_setting("Gameplay", "text_scale", 1, { game_version = 21, min = 0.1, max = 4, step = 0.05 })
-add_setting("Gameplay", "show_player_trail", false, { game_version = 21 })
-add_setting(
-    "Gameplay",
-    "player_trail_decay",
-    3,
-    { game_version = 21, dependencies = { show_player_trail = true }, min = 0.5, max = 50, step = 2.5 }
-)
-add_setting(
-    "Gameplay",
-    "player_trail_scale",
-    0.9,
-    { game_version = 21, dependencies = { show_player_trail = true }, min = 0.05, max = 1, step = 0.05 }
-)
-add_setting(
-    "Gameplay",
-    "player_trail_alpha",
-    35,
-    { game_version = 21, dependencies = { show_player_trail = true }, min = 0, max = 255, step = 1 }
-)
-add_setting(
-    "Gameplay",
-    "player_trail_has_swap_color",
-    true,
-    { game_version = 21, dependencies = { show_player_trail = true } }
-)
-add_setting("Gameplay", "show_swap_particles", true, { game_version = 21 })
 
 add_setting("hidden", "server_url", "openhexagon.fun")
 add_setting("hidden", "server_http_api_port", 8003)

@@ -43,14 +43,16 @@ parser
     :args(1)
 parser:flag("--quiet", "don't print logs to stderr")
 
---TODO: These aren't being used yet. They'll be helpful once the new ui is in place
-parser:option("--tickrate", "number of ticks per second (default is 60)", 60, tonumber, 1)
+parser:option("--ui-scale", "starting ui scale", 1, tonumber, 1)
 parser:flag("--overlay-masks", "(ui) overlay mask elements")
 parser:flag("--overlay-mouse-sensors", "(ui) overlay mouse sensor elements")
 parser:flag("--overlay-view-request", "(ui) overlay mouse view requests")
-parser:option("--overlay-grid", "(ui) overlay grid and set its size", nil, tonumber, "?"):action(function(args, _, list)
-    args.overlay_grid = list[1] or 50
+parser:option("--overlay-grid", "(ui) overlay grid and set its size", nil, tonumber, "?"):action(function(a, _, list)
+    a.overlay_grid = list[1] or 50
 end)
+
+--TODO: These aren't being used yet. They'll be helpful once the new ui is in place
+parser:option("--tickrate", "number of ticks per second (default is 60)", 60, tonumber, 1)
 
 args = parser:parse(love.arg.parseGameArguments(arg))
 

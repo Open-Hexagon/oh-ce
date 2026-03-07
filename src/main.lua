@@ -40,9 +40,9 @@ local function server_exit()
     end
 end
 
----comment
----@param config any
----@param ... fun(name:string, ...:any)
+---Processes events
+---@param config table? the config module
+---@param ... fun(name:string, ...:any) functions to send event data to
 ---@return integer?
 local function event_loop(config, ...)
     love.event.pump()
@@ -329,10 +329,15 @@ function love.run()
 
     do
         local config = require("config")
-
         local ohui = require("ohui")
         local ui2 = require("ui2")
-        ohui.settings.scale = 1
+
+        local ui_settings = ohui.settings
+        ui_settings.scale = args.ui_scale
+        ui_settings.overlay_grid = args.grid
+        ui_settings.overlay_masks = args.overlay_masks
+        ui_settings.overlay_mouse_sensors = args.overlay_mouse_sensors
+        ui_settings.overlay_view_request = args.overlay_view_request
 
         ohui.theme.set_default("font_path", "assets/font/open-pentagon.ttf")
         ohui.theme.set_default("icon_font_path", "assets/font/open-pentagon.ttf")
