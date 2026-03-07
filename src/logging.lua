@@ -79,8 +79,12 @@ function Logger:not_implemented()
     )
 end
 
----Add a stream to log to. The preamble format string should contain exactly 4 '%s' format options.
----These are replaced in order of: thread_id, timestamp, level label, and modname.
+---Add a stream to log to.
+---The preamble format can contain the following format directives which will get replaced when logging.
+---+ %thread_id
+---+ %timestamp
+---+ %modname
+---+ %level
 ---@param stream stream any table like object that has a write method e.g. io.stderr
 ---@param level integer logging level for this stream
 ---@param preamble_format string? preamble format string
