@@ -328,8 +328,6 @@ function love.run()
     end
 
     do
-
-
         local config = require("config")
 
         local ohui = require("ohui")
@@ -344,7 +342,7 @@ function love.run()
 
         global_config.init()
         -- apply fullscreen setting initially
-        config.get_definitions().fullscreen.onchange(config.get("fullscreen"))
+        config.properties.fullscreen.onchange(config.get("fullscreen"))
 
         local fps_limit = config.get("fps_limit")
         local delta_target = 1 / fps_limit

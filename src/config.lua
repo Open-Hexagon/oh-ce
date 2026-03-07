@@ -1,24 +1,56 @@
 local json = require("extlibs.json.json-beautify")
 local input_schemes = require("input_schemes")
 
-local config = {}
-
-local settings = {}
-local properties = {}
-local categories = {}
-
-local current_profile = nil
-
 local PROFILE_PATH = "config/"
 if not love.filesystem.getInfo(PROFILE_PATH) then
     love.filesystem.createDirectory(PROFILE_PATH)
 end
 
----add a setting to the config
+local config = {}
+
+local settings = {}
+local properties = {}
+
+local categories = {}
+categories.hidden = { name = "hidden" }
+
+config.categories = categories
+config.properties = properties
+
+local current_profile = nil
+
+---creates a category
 ---@param name string
----@param default any
+local function create_category(name)
+    if categories[name] then
+        error("category aleady exists", 2)
+    end
+    local c = { name = name }
+    table.insert(categories, c)
+    categories[name] = c
+end
+
+-- create categories in order
+create_category("Gameplay")
+create_category("UI")
+create_category("Audio")
+create_category("General")
+create_category("Display")
+create_category("Input")
+
+---add a setting to the config
+---@param category string setting category
+---@param name string internal setting name
+---@param default any default value
 ---@param options table?
 local function add_setting(category, name, default, options)
+    if not categories[category] then
+        error("category does not exist", 2)
+    end
+    if properties[name] then
+        error("setting aleady exists", 2)
+    end
+
     options = options or {}
     if options.can_change_in_offical == nil then
         options.can_change_in_offical = true
@@ -27,20 +59,20 @@ local function add_setting(category, name, default, options)
         options.dependencies = options.dependencies or {}
         options.dependencies.official_mode = false
     end
-    properties[name] = {
-        name = name,
-        default = default,
-        category = category,
-        display_name = name:gsub("_", " "):gsub("^%l", string.upper),
-    }
-    categories[category] = categories[category] or {}
-    categories[category][name] = properties[name]
-    for key, value in pairs(options) do
-        properties[name][key] = value
-    end
+
+    local property = options -- reuse the options table for the settings
+
+    property.name = name
+    property.default = default
+    property.category = category
+    property.display_name = name:gsub("_", " "):gsub("^%l", string.upper)
+
+    properties[name] = property
+    table.insert(categories[category], property)
 end
 
--- setting definitions, ones that were not visible in the menu of the old games (and still aren't) are marked as "missing"
+-- ! setting definitions, ones that were not visible in the menu of the old games (and still aren't) are marked as "missing"
+
 add_setting("Gameplay", "game_resolution_scale", 1, {
     min = 1,
     max = 10,
@@ -172,9 +204,10 @@ add_setting(
     { game_version = 21, dependencies = { show_player_trail = true } }
 )
 add_setting("Gameplay", "show_swap_particles", true, { game_version = 21 })
-add_setting("", "server_url", "openhexagon.fun")
-add_setting("", "server_http_api_port", 8003)
-add_setting("", "server_https_api_port", 8001)
+
+add_setting("hidden", "server_url", "openhexagon.fun")
+add_setting("hidden", "server_http_api_port", 8003)
+add_setting("hidden", "server_https_api_port", 8001)
 
 local function add_input(name, versions)
     local bindings = {}
@@ -213,14 +246,14 @@ function config.set_defaults()
 end
 
 ---sets a setting to a value
----@param name string
+---@param name string internal setting name
 ---@param value any
 function config.set(name, value)
     settings[name] = value
 end
 
 ---gets a setting (returns the default for settings that cannot be changed in official mode if official mode is on)
----@param name string
+---@param name string internal setting name
 ---@return any
 function config.get(name)
     local value = settings[name]
@@ -235,15 +268,15 @@ function config.get(name)
     end
 end
 
----get the definition of all the settings (default values, type, game versions it affects, ...)
----@param categorized boolean? puts category names as keys of setting tables
----@return table
-function config.get_definitions(categorized)
-    if categorized then
-        return categories
-    end
-    return properties
-end
+-- ---get the definition of all the settings (default values, type, game versions it affects, ...)
+-- ---@param categorized boolean? puts category names as keys of setting tables
+-- ---@return table
+-- function config.get_definitions(categorized)
+--     if categorized then
+--         return categories
+--     end
+--     return properties
+-- end
 
 ---gets a table of all settings or all settings for a certain game version
 ---@param game_version number|nil
