@@ -80,15 +80,19 @@ end
 add_setting("Gameplay", "game_resolution_scale", 1, {
     min = 1,
     max = 10,
-    step = 1,
+    positions = 10,
+    show_positions = true,
     onchange = function()
         require("game_handler").process_event("resize", love.graphics.getDimensions())
     end,
 })
 
-add_setting("Gameplay", "official_mode", true, { game_version = { 192, 20, 21, 3 }, tooltip = [[
-On: For competition. Scores are saved and recorded to leaderboards. Forces certain default settings to keep things fair.
-Off: Enables more settings but scores are not saved. Useful for level creation/debugging.]] })
+add_setting("Gameplay", "official_mode", true, {
+    game_version = { 192, 20, 21, 3 },
+    tooltip = [[
+On: For competition. Scores are saved and submitted to leaderboards. Forces certain default settings to keep things fair.
+Off: Enables more settings. Scores are saved but not submitted. Useful for level creation/debugging.]],
+})
 add_setting("Gameplay", "beatpulse", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
 add_setting("Gameplay", "pulse", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
 add_setting("Gameplay", "player_size", 7.3, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
@@ -102,30 +106,42 @@ add_setting("Gameplay", "background", true, { can_change_in_offical = false, gam
 add_setting("Gameplay", "invincible", false, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
 add_setting("Gameplay", "rotation", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
 add_setting("Gameplay", "messages", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
-add_setting("Gameplay", "player_tilt_intensity", 1, { game_version = 21, min = 0, max = 5, step = 0.1 })
+add_setting("Gameplay", "player_tilt_intensity", 1, {
+    game_version = 21,
+    min = 0,
+    max = 5,
+    positions = 51,
+    format = "%.1f",
+    tooltip = "How much the player arrow tilts while moving.",
+})
 add_setting("Gameplay", "swap_blinking_effect", true, { game_version = 21 })
 add_setting("Gameplay", "flash", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
 add_setting("Gameplay", "shaders", true, { can_change_in_offical = false, game_version = 21 })
 add_setting("Gameplay", "camera_shake_mult", 1, { game_version = 21 }) -- missing
-add_setting("Gameplay", "text_scale", 1, { game_version = 21, min = 0.1, max = 4, step = 0.05 })
+add_setting("Gameplay", "text_scale", 1, { game_version = 21, min = 0.1, max = 4, positions = 79, format = "%.2f" })
 add_setting("Gameplay", "show_player_trail", false, { game_version = 21 })
-add_setting(
-    "Gameplay",
-    "player_trail_decay",
-    3,
-    { game_version = 21, dependencies = { show_player_trail = true }, min = 0.5, max = 50, step = 2.5 }
-)
-add_setting(
-    "Gameplay",
-    "player_trail_scale",
-    0.9,
-    { game_version = 21, dependencies = { show_player_trail = true }, min = 0.05, max = 1, step = 0.05 }
-)
+add_setting("Gameplay", "player_trail_decay", 3, {
+    game_version = 21,
+    dependencies = { show_player_trail = true },
+    special_min_value = "0.05",
+    min = 0,
+    max = 50,
+    positions = 21,
+    format = "%.1f",
+})
+add_setting("Gameplay", "player_trail_scale", 0.9, {
+    game_version = 21,
+    dependencies = { show_player_trail = true },
+    min = 0.05,
+    max = 1,
+    positions = 20,
+    format = "%.2f",
+})
 add_setting(
     "Gameplay",
     "player_trail_alpha",
     35,
-    { game_version = 21, dependencies = { show_player_trail = true }, min = 0, max = 255, step = 1 }
+    { game_version = 21, dependencies = { show_player_trail = true }, min = 0, max = 255, positions = 256 }
 )
 add_setting(
     "Gameplay",
@@ -141,9 +157,12 @@ add_setting("Gameplay", "show_swap_particles", true, { game_version = 21 })
 
 add_setting("UI", "gui_scale", 1, {
     display_name = "GUI scale",
-    min = 0.5,
+    min = 0,
     max = 2,
-    step = 0.1,
+    special_min_value = "Auto",
+    positions = 5,
+    format = "%.1fx",
+    show_positions = true,
     onchange = function()
         -- TODO: remove
         local ui = require("ui")
@@ -151,13 +170,6 @@ add_setting("UI", "gui_scale", 1, {
             ui.process_event("resize")
             return true
         end
-    end,
-})
-add_setting("UI", "area_based_gui_scale", false, {
-    onchange = function()
-        -- TODO: remove
-        require("ui").process_event("resize")
-        return true
     end,
 })
 add_setting("UI", "background_preview", "minimal", {
@@ -182,7 +194,10 @@ add_setting("UI", "in-game_buttons", true)
 add_setting("Audio", "background_preview_music_volume", 0, {
     min = 0,
     max = 1,
-    step = 0.05,
+    positions = 101,
+    format = function(n)
+        return tostring(n * 100) .. "%"
+    end,
     onchange = function(value)
         require("game_handler").set_volume(value)
     end,
@@ -191,7 +206,10 @@ add_setting("Audio", "background_preview_music_volume", 0, {
 add_setting("Audio", "background_preview_sound_volume", 0, {
     min = 0,
     max = 1,
-    step = 0.05,
+    positions = 101,
+    format = function(n)
+        return tostring(n * 100) .. "%"
+    end,
     onchange = function(value)
         require("game_handler").set_volume(nil, value)
     end,
@@ -210,7 +228,12 @@ add_setting("Display", "fullscreen", "windowed", {
 add_setting("Audio", "sound_volume", 1, { game_version = { 192, 20, 21, 3 }, min = 0, max = 1, step = 0.05 })
 add_setting("Audio", "music_volume", 1, { game_version = { 192, 20, 21, 3 }, min = 0, max = 1, step = 0.05 })
 
-add_setting("Audio", "sync_music_to_dm", true, { game_version = { 20, 21 } })
+add_setting(
+    "Audio",
+    "sync_music_to_dm",
+    true,
+    { game_version = { 20, 21 }, display_name = "Sync music to difficulty multiplier" }
+)
 add_setting("Audio", "music_speed_mult", 1, {
     game_version = 21,
     min = 0.7,

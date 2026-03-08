@@ -13,6 +13,7 @@ local categories = config.categories
 local scroll = ui.area_element.scroll
 local id = ui.new_id_table()
 local toggle = ui.element.toggle
+local slider = ui.element.slider
 
 local settings = {}
 
@@ -35,7 +36,7 @@ local category_tooltip_text = {
     Input = "Input configuration",
 }
 
-local menu_width = 600
+local menu_width = 800
 local category_bar_width = 75
 local category_icon_size = 54
 
@@ -56,39 +57,104 @@ end
 
 local function draw_setting(property)
     local sid, state
-    cursor.push()
+    state = id[property.name]
     if type(property.default) == "boolean" then
         sid = mnav.declare_sensor_id()
-        state = id[property.name]
-        cursor.start_area()
-        cursor.height = 24
-        cursor.auto_reshape = "width"
-        cursor.change_anchor(0, 0.5)
-        toggle(state, sid)
-        cursor.shift_right(10)
+        cursor.height = 32
+        cursor.push()
+        do
+            cursor.auto_reshape = "no"
+            cursor.auto_area_expansion = "cursor"
+            cursor.change_anchor(0, 0.5)
+            cursor.clip_left(16)
 
-        draw_by_cursor.label(
-            property.display_name,
-            24,
-            "left",
-            false,
-            state.on and theme.accent_color or theme.text_color
-        )
-        if mnav.is_hovering(sid) then
-            draw_by_cursor.bottom_line(theme.accent_color, 2, "center")
+            draw_by_cursor.label(
+                property.display_name,
+                24,
+                "left",
+                false,
+                state.on and theme.accent_color or theme.text_color
+            )
+
+            cursor.change_anchor(1, 0.5)
+            toggle(state, sid)
+
+            if mnav.is_hovering(sid) then
+                draw_by_cursor.top_line(theme.accent_color, 2, "center", -2)
+                draw_by_cursor.bottom_line(theme.accent_color, 2, "center", -2)
+            end
+            if property.tooltip then
+                tooltip("right", property.tooltip, 20, "left", nil, sid)
+            end
         end
-
-        cursor.finish_area()
+        cursor.peek()
+        cursor.h_stretch(100)
         mnav.make_sensor(sid)
-        if property.tooltip then
-            tooltip("right", property.tooltip, 20, "left")
+        cursor.pop()
+        cursor.shift_down()
+    elseif type(property.default) == "number" then
+        if not (property.min and property.max) then
+            return
+        end
+        if property.positions then
+            sid = mnav.declare_sensor_id()
+            local slider_sid = mnav.declare_sensor_id()
+            local actual_value
+            cursor.height = 32
+            cursor.push()
+            do
+                cursor.auto_reshape = "no"
+                cursor.auto_area_expansion = "cursor"
+                cursor.change_anchor(0, 0.5)
+                cursor.clip_left(16)
+                draw_by_cursor.label(property.display_name, 24, "left", false)
+
+                if mnav.is_hovering(sid) or mnav.get_dragging(slider_sid) then
+                    draw_by_cursor.top_line(theme.accent_color, 2, "center", -2)
+                    draw_by_cursor.bottom_line(theme.accent_color, 2, "center", -2)
+                end
+                if property.tooltip then
+                    tooltip("right", property.tooltip, 20, "left", nil, sid)
+                end
+
+                cursor.change_anchor(1, 0.5)
+                cursor.width = 150
+                mnav.make_sensor(slider_sid, smode.draggable)
+                slider(state, property.min, property.max, property.positions, property.show_positions, slider_sid)
+                cursor.shift_left(10)
+
+                if property.special_min_value and state.value == property.min then
+                    actual_value = property.special_min_value
+                elseif property.special_max_value and state.value == property.max then
+                    actual_value = property.special_max_value
+                else
+                    actual_value = state.value
+                end
+
+                if type(property.format) == "string" and type(actual_value) == "number" then
+                    draw_by_cursor.label(string.format(property.format, actual_value), 20, "right", false)
+                elseif type(property.format) == "function" then
+                    draw_by_cursor.label(property.format(actual_value), 20, "right", false)
+                else
+                    draw_by_cursor.label(tostring(actual_value), 20, "right", false)
+                end
+            end
+            cursor.peek()
+            cursor.h_stretch(100)
+            mnav.make_sensor(sid)
+            cursor.pop()
+            cursor.shift_down()
+        elseif property.step then
+            cursor.shift_down()
+        else
+            return
         end
     else
         draw_by_cursor.label(property.display_name, 24, "left", false)
         mnav.make_sensor()
-        tooltip("right", ".............................................................", 24, "left")
+        tooltip("right", "<placeholder>", 20, "left")
+        cursor.shift_down()
     end
-    cursor.pop()
 end
 
 -- scratch variables
@@ -99,17 +165,17 @@ function settings.main()
 
     cursor.push_translation(slide_in_out(), 0) -- (1)
 
-    cursor.push()
+    cursor.v_split(math.min(menu_width, screen_width)) -- (2)
+    cursor.pop() -- (2.1)
 
-    cursor.width = math.min(menu_width, screen_width)
     draw_by_cursor.rectangle(bg_color)
     draw_by_cursor.right_line(theme.white, 2, "inside")
 
-    cursor.push()
+    cursor.v_split(category_bar_width) --(3)
+    cursor.pop() -- (3.1)
 
     --#region category bar
 
-    cursor.width = category_bar_width
     draw_by_cursor.right_line(theme.white, 2, "outside")
     cursor.change_anchor(0.5, 0)
 
@@ -134,48 +200,54 @@ function settings.main()
 
     --#endregion
 
-    cursor.pop()
+    cursor.pop() -- (3.2)
+
+    cursor.h_split(75, true) -- (4)
+    cursor.pop() -- (4.1)
 
     --#region settings list
 
-    cursor.clip_left(category_bar_width)
-    cursor.clip_top(75)
-    draw_by_cursor.top_line(theme.white, 2, "inside", 0.5)
-
     scroll.start(id.scroll)
 
-    cursor.x = cursor.x + 12
-    cursor.y = cursor.y + 8
+    cursor.clip(12, 8, 28, 0)
+
+    cursor.auto_reshape = "height"
 
     for i = 1, #categories do
         local category = categories[i]
 
         cursor.start_area()
+
         draw_by_cursor.label(category.name, 32, "left", false)
         cursor.shift_down(10)
-        A = cursor.x
-        cursor.x = cursor.x + 16
+
         for j = 1, #category do
             draw_setting(category[j])
-            cursor.shift_down(10)
         end
-        cursor.x = A
 
         cursor.finish_area()
+
         A = cursor.height
         cursor.height = 10000
         scroll.auto_scroll_region(jump_to_category == i)
         cursor.height = A
+
         cursor.shift_down(10)
     end
 
     scroll.finish(8, 0)
 
+    draw_by_cursor.top_line(theme.white, 2, "inside", 0.5)
+
     --#endregion
 
-    cursor.pop()
+    cursor.pop() -- (4.2)
 
-    cursor.clip_left(menu_width)
+    cursor.change_anchor(0.5)
+    draw_by_cursor.label("Search", 24, "left", false)
+
+    cursor.pop() -- (2.2)
+
     draw_by_cursor.vline({ 0, 0, 0, 0.2 }, 5, 0)
     mnav.make_sensor()
     if mnav.get_clicked() then
