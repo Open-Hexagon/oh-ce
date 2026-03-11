@@ -93,12 +93,26 @@ add_setting("Gameplay", "official_mode", true, {
 On: For competition. Scores are saved and submitted to leaderboards. Forces certain default settings to keep things fair.
 Off: Enables more settings. Scores are saved but not submitted. Useful for level creation/debugging.]],
 })
-add_setting("Gameplay", "beatpulse", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
-add_setting("Gameplay", "pulse", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting(
+    "Gameplay",
+    "beatpulse",
+    true,
+    { can_change_in_offical = false, game_version = { 192, 20, 21 }, tooltip = "The center polygon pulse." }
+)
+add_setting("Gameplay", "pulse", true, {
+    can_change_in_offical = false,
+    game_version = { 192, 20, 21 },
+    tooltip = "The pulse of the whole level. It typically is what causes walls to slow down and speed up rhythmically.",
+})
 add_setting("Gameplay", "player_size", 7.3, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
 add_setting("Gameplay", "player_speed", 9.45, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
 add_setting("Gameplay", "player_focus_speed", 4.625, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
-add_setting("Gameplay", "black_and_white", false, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting(
+    "Gameplay",
+    "black_and_white",
+    false,
+    { can_change_in_offical = false, game_version = { 192, 20, 21 }, tooltip = "Dog vision." }
+)
 add_setting("Gameplay", "3D_enabled", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
 add_setting("Gameplay", "3D_multiplier", 1, { can_change_in_offical = false, game_version = { 192, 20, 21 } }) -- missing
 add_setting("Gameplay", "3D_max_depth", 100, { can_change_in_offical = false, game_version = { 192, 20 } }) -- missing
@@ -172,8 +186,8 @@ add_setting("UI", "gui_scale", 1, {
         end
     end,
 })
-add_setting("UI", "background_preview", "minimal", {
-    options = { "minimal", "full" },
+add_setting("UI", "background_preview_mode", "Minimal", {
+    options = { "Minimal", "Full" },
     onchange = function(value)
         if value == "full" then
             -- TODO: remove
@@ -187,14 +201,16 @@ add_setting("UI", "background_preview", "minimal", {
     end,
 })
 add_setting("UI", "background_preview_has_text", false, { dependencies = { background_preview = "full" } })
-add_setting("UI", "in-game_buttons", true)
+add_setting("UI", "input_display", true, { tooltip = "Display inputs on screen during gameplay." })
 
 --#endregion
 
 add_setting("Audio", "background_preview_music_volume", 0, {
+    display_name = "BG preview music volume",
     min = 0,
     max = 1,
     positions = 101,
+    inc_dec_buttons = 0,
     format = function(n)
         return tostring(n * 100) .. "%"
     end,
@@ -204,9 +220,11 @@ add_setting("Audio", "background_preview_music_volume", 0, {
     dependencies = { background_preview = "full" },
 })
 add_setting("Audio", "background_preview_sound_volume", 0, {
+    display_name = "BG preview sound volume",
     min = 0,
     max = 1,
     positions = 101,
+    inc_dec_buttons = 0,
     format = function(n)
         return tostring(n * 100) .. "%"
     end,
@@ -215,19 +233,27 @@ add_setting("Audio", "background_preview_sound_volume", 0, {
     end,
     dependencies = { background_preview = "full" },
 })
-add_setting("General", "preload_all_packs", false)
-add_setting("Display", "fps_limit", 200, { min = 30, max = 1001, step = 5 })
-add_setting("Display", "fullscreen", "windowed", {
-    options = { "exclusive", "borderless", "windowed" },
-    onchange = function(value)
-        if love.window and love.window.isOpen() then
-            love.window.setFullscreen(value ~= "windowed", value == "borderless" and "desktop" or "exclusive")
-        end
+
+add_setting("Audio", "sound_volume", 1, {
+    game_version = { 192, 20, 21, 3 },
+    min = 0,
+    max = 1,
+    positions = 101,
+    inc_dec_buttons = 0,
+    format = function(n)
+        return tostring(n * 100) .. "%"
     end,
 })
-add_setting("Audio", "sound_volume", 1, { game_version = { 192, 20, 21, 3 }, min = 0, max = 1, step = 0.05 })
-add_setting("Audio", "music_volume", 1, { game_version = { 192, 20, 21, 3 }, min = 0, max = 1, step = 0.05 })
-
+add_setting("Audio", "music_volume", 1, {
+    game_version = { 192, 20, 21, 3 },
+    min = 0,
+    max = 1,
+    positions = 101,
+    inc_dec_buttons = 0,
+    format = function(n)
+        return tostring(n * 100) .. "%"
+    end,
+})
 add_setting(
     "Audio",
     "sync_music_to_dm",
@@ -235,15 +261,44 @@ add_setting(
     { game_version = { 20, 21 }, display_name = "Sync music to difficulty multiplier" }
 )
 add_setting("Audio", "music_speed_mult", 1, {
+    display_name = "Music speed multiplier",
     game_version = 21,
     min = 0.7,
     max = 1.3,
-    step = 0.05,
+    positions = 13,
+    format = "%.2fx",
     onchange = function()
         require("compat.game21").refresh_music_pitch()
     end,
 })
 add_setting("Audio", "play_swap_sound", true, { game_version = 21 })
+
+--#region General settings
+
+add_setting("General", "preload_all_packs", false)
+
+--#endregion
+
+--#region Display settings
+
+add_setting("Display", "fps_limit", 200, {
+    display_name = "FPS limit",
+    min = 30,
+    max = 1005,
+    positions = 196,
+    special_max_value = "Unlimited",
+    inc_dec_buttons = true,
+})
+add_setting("Display", "fullscreen", "Windowed", {
+    options = { "Exclusive", "Borderless", "Windowed" },
+    onchange = function(value)
+        if love.window and love.window.isOpen() then
+            love.window.setFullscreen(value ~= "windowed", value == "borderless" and "desktop" or "exclusive")
+        end
+    end,
+})
+
+--#endregion
 
 add_setting("hidden", "server_url", "openhexagon.fun")
 add_setting("hidden", "server_http_api_port", 8003)
@@ -307,16 +362,6 @@ function config.get(name)
         return value
     end
 end
-
--- ---get the definition of all the settings (default values, type, game versions it affects, ...)
--- ---@param categorized boolean? puts category names as keys of setting tables
--- ---@return table
--- function config.get_definitions(categorized)
---     if categorized then
---         return categories
---     end
---     return properties
--- end
 
 ---gets a table of all settings or all settings for a certain game version
 ---@param game_version number|nil

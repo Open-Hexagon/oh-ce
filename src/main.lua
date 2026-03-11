@@ -337,7 +337,7 @@ function love.run()
         ui_settings.overlay_grid = args.grid
         ui_settings.overlay_masks = args.overlay_masks
         ui_settings.overlay_mouse_sensors = args.overlay_mouse_sensors
-        ui_settings.overlay_view_request = args.overlay_view_request
+        ui_settings.overlay_scroll = args.overlay_scroll
 
         ohui.theme.set_default("font_path", "assets/font/open-pentagon.ttf")
         ohui.theme.set_default("icon_font_path", "assets/font/open-pentagon.ttf")

@@ -46,7 +46,7 @@ parser:flag("--quiet", "don't print logs to stderr")
 parser:option("--ui-scale", "starting ui scale", 1, tonumber, 1)
 parser:flag("--overlay-masks", "(ui) overlay mask elements")
 parser:flag("--overlay-mouse-sensors", "(ui) overlay mouse sensor elements")
-parser:flag("--overlay-view-request", "(ui) overlay mouse view requests")
+parser:flag("--overlay-scroll", "(ui) overlay scrolling elements")
 parser:option("--overlay-grid", "(ui) overlay grid and set its size", nil, tonumber, "?"):action(function(a, _, list)
     a.overlay_grid = list[1] or 50
 end)
