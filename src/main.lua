@@ -41,30 +41,18 @@ local function server_exit()
 end
 
 ---Processes events
----@param config table? the config module
 ---@param ... fun(name:string, ...:any) functions to send event data to
 ---@return integer?
-local function event_loop(config, ...)
+local function event_loop(...)
+    local exit_code
     love.event.pump()
     for name, a, b, c, d, e, f in love.event.poll() do
         -- check exit conditions
-        local exit
         if name == "quit" then
-            exit = a or 0
+            exit_code = a or 0
         elseif name == "threaderror" then
             log:error(string.format("Error in %s: %s", tostring(a), b))
-            exit = 1
-        end
-
-        -- cleanup and exit
-        if exit then
-            if video_encoder.running then
-                video_encoder.stop()
-            end
-            if config then
-                config.save()
-            end
-            return exit
+            exit_code = 1
         end
 
         -- pass events to other modules
@@ -73,6 +61,7 @@ local function event_loop(config, ...)
             process_event(name, a, b, c, d, e, f)
         end
     end
+    return exit_code
 end
 
 local render_replay = async(function(game_handler, replay, out_file, final_score)
@@ -347,7 +336,7 @@ function love.run()
 
         global_config.init()
         -- apply fullscreen setting initially
-        config.properties.fullscreen.onchange(config.get("fullscreen"))
+        -- config.properties.fullscreen.onchange(config.get("fullscreen"))
 
         local fps_limit = config.get("fps_limit")
         local delta_target = 1 / fps_limit
@@ -374,10 +363,22 @@ function love.run()
             love.timer.step()
 
             -- process events
-            exit_code = event_loop(config, game_handler.process_event, ohui.push_event)
+            exit_code = event_loop(game_handler.process_event, ohui.push_event, ui2.process_event)
+
+            -- clean up and exit
+            if exit_code then
+                if video_encoder.running then
+                    video_encoder.stop()
+                end
+                if config then
+                    config.save()
+                end
+                logging.close_all()
+                return exit_code
+            end
 
             threadify.update()
-            ui2.update(love.timer.getDelta())
+            ui2.update()
             audio.update()
             assets.run_main_thread_task()
             assets.mirror_client.update()
@@ -409,8 +410,6 @@ function love.run()
                 love.timer.sleep(delta_target - (love.timer.getTime() - last_time))
                 last_time = last_time + delta_target
             end
-
-            return exit_code
         end
     end
 end
