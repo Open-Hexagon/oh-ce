@@ -8,7 +8,7 @@ local set_color = require("compat.game21.color_transform")
 local timeline = require("compat.game20.timeline")
 local async = require("async")
 local music = require("compat.music")
-local config = require("config").settings
+local settings = require("config").settings
 local input = require("input")
 local status = require("compat.game20.status")
 local level = require("compat.game20.level")
@@ -40,7 +40,7 @@ local instance_offsets = {}
 local instance_colors = {}
 
 local function set_3D_depth(style_data)
-    depth = math.min(style_data["3D_depth"] or 15, config.get("3D_max_depth"))
+    depth = math.min(style_data["3D_depth"] or 15, settings.get("3D_max_depth"))
 end
 
 ---starts a new game
@@ -63,7 +63,7 @@ public.start = async(function(pack_id, level_id, level_options)
     local style_data = game.pack.styles[level.style_id]
     style.set(style_data)
     music.stop()
-    local pitch = config.get("sync_music_to_dm") and math.pow(game.difficulty_mult, 0.12) or 1
+    local pitch = settings.get("sync_music_to_dm") and math.pow(game.difficulty_mult, 0.12) or 1
     music.play(game.pack.music[level.music_id], not public.first_play, nil, pitch)
     sound.play_game("go.ogg")
 
@@ -72,7 +72,7 @@ public.start = async(function(pack_id, level_id, level_options)
     vfs.pack_path = game.pack.info.path
     vfs.pack_folder_name = game.pack.folder
     local files = {
-        ["config.json"] = make_fake_config(config),
+        ["config.json"] = make_fake_config(settings),
     }
     if public.persistent_data ~= nil then
         for path, contents in pairs(public.persistent_data) do
@@ -104,7 +104,7 @@ public.start = async(function(pack_id, level_id, level_options)
     lua_runtime.run_fn_if_exists("onLoad")
     game.set_sides(level_status.sides)
     game.current_rotation = 0
-    style._3D_depth = math.min(style._3D_depth, config.get("3D_max_depth"))
+    style._3D_depth = math.min(style._3D_depth, settings.get("3D_max_depth"))
     set_3D_depth(style_data)
     assets.mirror_client.assign_asset_to_listener(set_3D_depth, style_data)
     public.running = true
@@ -132,7 +132,7 @@ end
 
 function game.death(force)
     sound.play_game("death.ogg")
-    if not force and (config.get("invincible") or level_status.tutorial_mode) then
+    if not force and (settings.get("invincible") or level_status.tutorial_mode) then
         return
     end
     sound.play_game("game_over.ogg")
@@ -246,8 +246,8 @@ function public.update(frametime)
                 game.main_timeline:reset()
             end
         end
-        local music_dm_sync_factor = config.get("sync_music_to_dm") and math.pow(game.difficulty_mult, 0.12) or 1
-        if config.get("beatpulse") then
+        local music_dm_sync_factor = settings.get("sync_music_to_dm") and math.pow(game.difficulty_mult, 0.12) or 1
+        if settings.get("beatpulse") then
             if status.beatpulse_delay <= 0 then
                 status.beatpulse = level_status.beat_pulse_max
                 status.beatpulse_delay = level_status.beat_pulse_delay_max
@@ -257,10 +257,10 @@ function public.update(frametime)
             if status.beatpulse > 0 then
                 status.beatpulse = status.beatpulse - 2 * frametime * music_dm_sync_factor
             end
-            local radius_min = config.get("beatpulse") and level_status.radius_min or 75
+            local radius_min = settings.get("beatpulse") and level_status.radius_min or 75
             status.radius = radius_min * (status.pulse / level_status.pulse_min) + status.beatpulse
         end
-        if config.get("pulse") then
+        if settings.get("pulse") then
             if status.pulse_delay <= 0 and status.pulse_delay_half <= 0 then
                 local pulse_add = status.pulse_direction > 0 and level_status.pulse_speed or -level_status.pulse_speed_r
                 local pulse_limit = status.pulse_direction > 0 and level_status.pulse_max or level_status.pulse_min
@@ -280,7 +280,7 @@ function public.update(frametime)
             status.pulse_delay = status.pulse_delay - frametime
             status.pulse_delay_half = status.pulse_delay_half - frametime
         end
-        if not config.get("black_and_white") then
+        if not settings.get("black_and_white") then
             style.update(frametime, math.pow(game.difficulty_mult, 0.8))
         end
     else
@@ -291,7 +291,7 @@ function public.update(frametime)
         end
         level_status.rotation_speed = level_status.rotation_speed * 0.99
     end
-    if config.get("3D_enabled") then
+    if settings.get("3D_enabled") then
         status.pulse_3D = status.pulse_3D + style._3D_pulse_speed * status.pulse_3D_direction * frametime
         if status.pulse_3D > style._3D_pulse_max then
             status.pulse_3D_direction = -1
@@ -299,7 +299,7 @@ function public.update(frametime)
             status.pulse_3D_direction = 1
         end
     end
-    if config.get("rotation") then
+    if settings.get("rotation") then
         local next_rotation = level_status.rotation_speed * 10
         if status.fast_spin > 0 then
             next_rotation = next_rotation
@@ -322,14 +322,14 @@ function public.draw(screen)
     love.graphics.scale(zoom_factor / p, zoom_factor / p)
     love.graphics.translate(unpack(shake_move))
     local effect
-    if config.get("3D_enabled") then
-        effect = style._3D_skew * status.pulse_3D * config.get("3D_multiplier")
+    if settings.get("3D_enabled") then
+        effect = style._3D_skew * status.pulse_3D * settings.get("3D_multiplier")
         love.graphics.scale(1, 1 / (1 + effect))
     end
     love.graphics.rotate(math.rad(game.current_rotation))
     style.compute_colors()
-    local black_and_white = config.get("black_and_white")
-    if config.get("background") then
+    local black_and_white = settings.get("black_and_white")
+    if settings.get("background") then
         style.draw_background(level_status.sides, black_and_white)
     end
     main_quads:clear()
@@ -339,7 +339,7 @@ function public.draw(screen)
     else
         player.draw(main_quads)
     end
-    if config.get("3D_enabled") and depth > 0 then
+    if settings.get("3D_enabled") and depth > 0 then
         local per_layer_offset = style._3D_spacing * style._3D_perspective_mult * effect * 3.6
         local rad_rot = math.rad(game.current_rotation)
         local sin_rot = math.sin(rad_rot)
@@ -384,7 +384,7 @@ function public.draw(screen)
     -- message and flash shouldn't be affected by skew/rotation
     love.graphics.origin()
     love.graphics.scale(zoom_factor, zoom_factor)
-    if game.message_text ~= nil and (not public.preview_mode or config.get("background_preview_has_text")) then
+    if game.message_text ~= nil and (not public.preview_mode or settings.get("background_preview_has_text")) then
         local function draw_text(ox, oy)
             love.graphics.print(
                 game.message_text,
@@ -410,7 +410,7 @@ function public.draw(screen)
         set_color(r, g, b, a)
         draw_text(0, 0)
     end
-    if status.flash_effect ~= 0 and config.get("flash") then
+    if status.flash_effect ~= 0 and settings.get("flash") then
         set_color(255, 255, 255, status.flash_effect)
         love.graphics.rectangle("fill", 0, 0, width / zoom_factor, height / zoom_factor)
     end

@@ -1,4 +1,4 @@
-local config = require("config").settings
+local settings = require("config").settings
 local level_status = require("compat.game21.level_status")
 local rng = require("compat.game21.random")
 local status = require("compat.game21.status")
@@ -6,7 +6,7 @@ local shake = {}
 local death_shake_translate = { 0, 0 }
 
 function shake.start()
-    status.camera_shake = 45 * config.get("camera_shake_mult")
+    status.camera_shake = 45 * settings.get("camera_shake_mult")
 end
 
 function shake.update(frametime)

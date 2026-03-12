@@ -1,4 +1,4 @@
-local config = require("config").settings
+local settings = require("config").settings
 local game_input = require("input")
 local lua_runtime = require("compat.game21.lua_runtime")
 local level_status = require("compat.game21.level_status")
@@ -47,7 +47,7 @@ function input.update(frametime)
             if not game.player_now_ready_to_swap and player.is_ready_to_swap() then
                 swap_particles.ready()
                 game.player_now_ready_to_swap = true
-                if config.get("play_swap_sound") then
+                if settings.get("play_swap_sound") then
                     sound.play_game("swap_blip.ogg")
                 end
             end

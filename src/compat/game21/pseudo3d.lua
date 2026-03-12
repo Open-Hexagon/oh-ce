@@ -1,6 +1,6 @@
 local args = require("args")
 local utils = require("compat.game192.utils")
-local config = require("config").settings
+local settings = require("config").settings
 local status = require("compat.game21.status")
 local style = require("compat.game21.style")
 local pseudo3d = {}
@@ -51,10 +51,10 @@ end
 local depth, pulse_3d, effect, rad_rot, sin_rot, cos_rot
 
 function pseudo3d.apply_skew()
-    if config.get("3D_enabled") then
+    if settings.get("3D_enabled") then
         depth = style.pseudo_3D_depth
-        pulse_3d = config.get("pulse") and status.pulse3D or 1
-        effect = style.pseudo_3D_skew * pulse_3d * config.get("3D_multiplier")
+        pulse_3d = settings.get("pulse") and status.pulse3D or 1
+        effect = style.pseudo_3D_skew * pulse_3d * settings.get("3D_multiplier")
         rad_rot = math.rad(game.current_rotation + 90)
         sin_rot = math.sin(rad_rot)
         cos_rot = math.cos(rad_rot)
@@ -76,7 +76,7 @@ local function adjust_alpha(a, i)
 end
 
 function pseudo3d.draw(set_render_stage, wall_quads, pivot_quads, player_tris, black_and_white)
-    if config.get("3D_enabled") then
+    if settings.get("3D_enabled") then
         for j = 1, depth do
             local i = depth - j
             local offset = style.pseudo_3D_spacing * (i + 1) * style.pseudo_3D_perspective_mult * effect * 3.6 * 1.4

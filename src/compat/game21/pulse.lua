@@ -1,6 +1,6 @@
 local level_status = require("compat.game21.level_status")
 local utils = require("compat.game192.utils")
-local config = require("config").settings
+local settings = require("config").settings
 local status = require("compat.game21.status")
 local pulse = {}
 
@@ -31,7 +31,7 @@ function pulse.update(frametime, dm_factor)
 end
 
 function pulse.get_zoom(zoom_factor)
-    local p = config.get("pulse") and status.pulse / level_status.pulse_min or 1
+    local p = settings.get("pulse") and status.pulse / level_status.pulse_min or 1
     return zoom_factor / p
 end
 

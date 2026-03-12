@@ -1,4 +1,4 @@
-local config = require("config").settings
+local settings = require("config").settings
 local level_status = require("compat.game21.level_status")
 local status = require("compat.game21.status")
 local beat_pulse = {}
@@ -8,7 +8,7 @@ function beat_pulse.init()
 end
 
 function beat_pulse.update(frametime, dm_factor)
-    if config.get("beatpulse") then
+    if settings.get("beatpulse") then
         if not level_status.manual_beat_pulse_control then
             if status.beat_pulse_delay <= 0 then
                 status.beat_pulse = level_status.beat_pulse_max
@@ -21,7 +21,7 @@ function beat_pulse.update(frametime, dm_factor)
             end
         end
     end
-    local radius_min = config.get("beatpulse") and level_status.radius_min or 75
+    local radius_min = settings.get("beatpulse") and level_status.radius_min or 75
     status.radius = radius_min * (status.pulse / level_status.pulse_min) + status.beat_pulse
 end
 

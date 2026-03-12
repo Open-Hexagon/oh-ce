@@ -2,7 +2,7 @@ local log = require("log")(...)
 local sound = require("compat.sound")
 local utils = require("compat.game192.utils")
 local speed_data = require("compat.game20.speed_data")
-local config = require("config").settings
+local settings = require("config").settings
 local input = require("input")
 local status = require("compat.game20.status")
 local level_status = require("compat.game20.level_status")
@@ -243,14 +243,14 @@ function lua_runtime.init_env(game, public)
     end
     env.m_messageAdd = function(msg, duration)
         game.event_timeline:append_do(function()
-            if public.first_play and config.get("messages") then
+            if public.first_play and settings.get("messages") then
                 add_message(msg, duration)
             end
         end)
     end
     env.m_messageAddImportant = function(msg, duration)
         game.event_timeline:append_do(function()
-            if config.get("messages") then
+            if settings.get("messages") then
                 add_message(msg, duration)
             end
         end)

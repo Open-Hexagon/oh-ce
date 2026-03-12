@@ -3,7 +3,7 @@ local sound = require("compat.sound")
 local utils = require("compat.game192.utils")
 local extra_math = require("compat.game21.math")
 local timer = require("compat.game21.timer")
-local config = require("config").settings
+local settings = require("config").settings
 local walls = require("compat.game20.walls")
 local style = require("compat.game20.style")
 local level_status = require("compat.game20.level_status")
@@ -34,10 +34,10 @@ function player.reset(pass_game)
     angle = 0
     hue = 0
     dead = false
-    size = config.get("player_size")
-    speed = config.get("player_speed")
-    focus_speed = config.get("player_focus_speed")
-    black_and_white = config.get("black_and_white")
+    size = settings.get("player_size")
+    speed = settings.get("player_speed")
+    focus_speed = settings.get("player_focus_speed")
+    black_and_white = settings.get("black_and_white")
     pos = { 0, 0 }
     last_pos = { 0, 0 }
 end
@@ -165,7 +165,7 @@ function player.update(frametime, movement, focus, swap)
         if extra_math.point_in_polygon(walls.entities[i].vertices, unpack(pos)) then
             if extra_math.point_in_polygon(walls.entities[i].vertices, unpack(last_pos)) then
                 dead_effect_timer:restart()
-                if not config.get("invincible") then
+                if not settings.get("invincible") then
                     dead = true
                 end
                 extra_math.get_orbit(last_pos, angle, -5 * game.get_speed_mult_dm(), pos)

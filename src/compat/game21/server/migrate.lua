@@ -3,10 +3,10 @@ local database = require("server.database_thread")
 local utils = require("compat.game192.utils")
 local sqlite = require("extlibs.sqlite")
 local game_handler = require("game_handler")
-local config = require("config").settings
+local settings = require("config").settings
 local async = require("async")
 
-async.busy_await(game_handler.init(config))
+async.busy_await(game_handler.init(settings))
 local packs = game_handler.get_packs()
 local level_validator_to_id = {}
 for j = 1, #packs do

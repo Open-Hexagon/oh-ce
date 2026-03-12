@@ -20,7 +20,7 @@ local camera_shake = require("compat.game21.camera_shake")
 local rotation = require("compat.game21.rotation")
 local async = require("async")
 local music = require("compat.music")
-local config = require("config").settings
+local settings = require("config").settings
 local game_input = require("input")
 local lua_runtime = require("compat.game21.lua_runtime")
 local shader_functions = require("compat.game21.lua_runtime.shaders")
@@ -92,7 +92,7 @@ public.start = async(function(pack_id, level_id, level_options)
     if game.level_data == nil then
         error("Error: level with id '" .. level_id .. "' not found")
     end
-    level_status.reset(config.get("sync_music_to_dm"))
+    level_status.reset(settings.get("sync_music_to_dm"))
     local style_data = game.pack_data.styles[game.level_data.style_id]
     if style_data == nil then
         log("Warn: style with id '" .. game.level_data.style_id .. "' not found")
@@ -120,9 +120,9 @@ public.start = async(function(pack_id, level_id, level_options)
     custom_walls.cw_clear()
     player.reset(
         game.get_swap_cooldown(),
-        config.get("player_size"),
-        config.get("player_speed"),
-        config.get("player_focus_speed")
+        settings.get("player_size"),
+        settings.get("player_speed"),
+        settings.get("player_focus_speed")
     )
     flash.init(game)
     game.current_rotation = 0
@@ -179,7 +179,7 @@ function game.death(force)
     if not status.has_died then
         lua_runtime.run_fn_if_exists("onPreDeath")
         sound.play_pack(game.pack_data, level_status.death_sound)
-        if force or not (level_status.tutorial_mode or config.get("invincible")) then
+        if force or not (level_status.tutorial_mode or settings.get("invincible")) then
             lua_runtime.run_fn_if_exists("onDeath")
             camera_shake.start()
             music.stop()
@@ -209,7 +209,7 @@ function public.refresh_music_pitch()
         return
     end
     local pitch = level_status.music_pitch
-        * config.get("music_speed_mult")
+        * settings.get("music_speed_mult")
         * (level_status.sync_music_to_dm and get_music_dm_sync_factor() or 1)
     if pitch ~= pitch then
         -- pitch is NaN, happens with negative difficulty mults
@@ -260,7 +260,7 @@ function public.update(frametime)
             beat_pulse.update(frametime, dm_factor)
             pulse.update(frametime, dm_factor)
 
-            if not config.get("black_and_white") then
+            if not settings.get("black_and_white") then
                 style.update(frametime, math.pow(game.difficulty_mult, 0.8))
             end
 
@@ -271,7 +271,7 @@ function public.update(frametime)
                     walls.handle_collision(input.move, frametime, player, status.radius)
                     or custom_walls.handle_collision(input.move, status.radius, player, frametime)
                 then
-                    local fatal = not config.get("invincible") and not level_status.tutorial_mode
+                    local fatal = not settings.get("invincible") and not level_status.tutorial_mode
                     player.kill(fatal)
                     game.death()
                 end
@@ -284,7 +284,7 @@ function public.update(frametime)
         pseudo3d.update(frametime)
 
         -- update rotation
-        if config.get("rotation") then
+        if settings.get("rotation") then
             rotation.update(game, frametime)
         end
         camera_shake.update(frametime)
@@ -298,30 +298,30 @@ function public.update(frametime)
 
         -- update trail color (also used for swap particles)
         current_trail_color[1], current_trail_color[2], current_trail_color[3] = style.get_player_color()
-        if config.get("black_and_white") then
+        if settings.get("black_and_white") then
             current_trail_color[1], current_trail_color[2], current_trail_color[3] = 255, 255, 255
         else
-            if config.get("player_trail_has_swap_color") then
+            if settings.get("player_trail_has_swap_color") then
                 player.get_color_adjusted_for_swap(current_trail_color)
             else
                 player.get_color(current_trail_color)
             end
         end
-        current_trail_color[4] = config.get("player_trail_alpha")
+        current_trail_color[4] = settings.get("player_trail_alpha")
 
-        if config.get("show_player_trail") and status.show_player_trail and not args.headless then
+        if settings.get("show_player_trail") and status.show_player_trail and not args.headless then
             trail_particles.update(frametime, current_trail_color)
         end
-        if config.get("show_swap_particles") and not args.headless then
+        if settings.get("show_swap_particles") and not args.headless then
             swap_particles.update(frametime, current_trail_color)
         end
 
         -- supress empty block warning for now
         --- @diagnostic disable
-        if level_status.pseudo_3D_required and not config.get("3D_enabled") then
+        if level_status.pseudo_3D_required and not settings.get("3D_enabled") then
             -- TODO: invalidate score
         end
-        if level_status.shaders_required and not config.get("shaders") then
+        if level_status.shaders_required and not settings.get("shaders") then
             -- TODO: invalidate score
         end
         --- @diagnostic enable
@@ -346,7 +346,7 @@ function public.draw(screen, frametime)
     shader_functions.check()
 
     local function set_render_stage(render_stage, no_shader, instanced)
-        if config.get("shaders") then
+        if settings.get("shaders") then
             local shader = status.fragment_shaders[render_stage]
             if shader ~= nil then
                 lua_runtime.run_fn_if_exists("onRenderStage", render_stage, frametime * 60)
@@ -365,8 +365,8 @@ function public.draw(screen, frametime)
         end
     end
 
-    local black_and_white = config.get("black_and_white")
-    if config.get("background") then
+    local black_and_white = settings.get("black_and_white")
+    if settings.get("background") then
         set_render_stage(0)
         style.draw_background(level_status.sides, level_status.darken_uneven_background_chunk, black_and_white)
     end
@@ -385,8 +385,8 @@ function public.draw(screen, frametime)
             pivot_quads,
             player_tris,
             cap_tris,
-            config.get("player_tilt_intensity"),
-            config.get("swap_blinking_effect"),
+            settings.get("player_tilt_intensity"),
+            settings.get("swap_blinking_effect"),
             black_and_white
         )
     end
@@ -394,12 +394,12 @@ function public.draw(screen, frametime)
     pseudo3d.draw(set_render_stage, wall_quads, pivot_quads, player_tris, black_and_white)
 
     if not public.preview_mode then
-        if config.get("show_player_trail") and status.show_player_trail then
+        if settings.get("show_player_trail") and status.show_player_trail then
             love.graphics.setShader()
             trail_particles.draw()
         end
 
-        if config.get("show_swap_particles") then
+        if settings.get("show_swap_particles") then
             love.graphics.setShader()
             swap_particles.draw()
         end
@@ -419,7 +419,7 @@ function public.draw(screen, frametime)
     love.graphics.scale(zoom_factor, zoom_factor)
     camera_shake.apply()
     set_render_stage(8)
-    if game.message_text ~= "" and (not public.preview_mode or config.get("background_preview_has_text")) then
+    if game.message_text ~= "" and (not public.preview_mode or settings.get("background_preview_has_text")) then
         -- text
         -- TODO: offset_color = style.get_color(0)  -- black in bw mode
         -- TODO: draw outlines (if not disabled in config)
@@ -442,7 +442,7 @@ function public.draw(screen, frametime)
     -- flash shouldnt be affected by rotation/pulse/camera_shake
     love.graphics.origin()
     love.graphics.scale(zoom_factor, zoom_factor)
-    flash.draw(config.get("flash"), zoom_factor)
+    flash.draw(settings.get("flash"), zoom_factor)
 end
 
 ---get the current score
@@ -488,7 +488,7 @@ public.init = async(function()
             "opensquare_font",
             "font",
             "assets/font/OpenSquare-Regular.ttf",
-            32 * config.get("text_scale") -- TODO: respond to changes
+            32 * settings.get("text_scale") -- TODO: respond to changes
         ))
         async.await(sound.init())
     end

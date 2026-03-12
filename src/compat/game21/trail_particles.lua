@@ -1,5 +1,5 @@
 local Particles = require("compat.game21.particles")
-local config = require("config").settings
+local settings = require("config").settings
 local player = require("compat.game21.player")
 local status = require("compat.game21.status")
 local assets = require("asset_system")
@@ -16,7 +16,7 @@ function trail_particles.init()
             local distance = status.radius + 2.4
             p.x, p.y = math.cos(p.angle) * distance, math.sin(p.angle) * distance
             return p.color[4] <= 3 / 255
-        end, config.get("player_trail_alpha"), config.get("player_trail_decay"))
+        end, settings.get("player_trail_alpha"), settings.get("player_trail_decay"))
     end
     particle_system:reset()
 end
@@ -28,7 +28,7 @@ function trail_particles.update(frametime, current_trail_color)
         particle_system:emit(
             x,
             y,
-            config.get("player_trail_scale"),
+            settings.get("player_trail_scale"),
             player.get_player_angle(),
             unpack(current_trail_color)
         )
