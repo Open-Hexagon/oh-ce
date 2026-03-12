@@ -1,4 +1,4 @@
-local config = require("config")
+local config = require("config").settings
 local game_input = require("input")
 local lua_runtime = require("compat.game21.lua_runtime")
 local level_status = require("compat.game21.level_status")

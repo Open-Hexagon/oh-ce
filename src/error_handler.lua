@@ -1,5 +1,6 @@
 local logging = require("logging")
 local log = logging.get_logger(...)
+local config = require("config")
 
 local utf8 = require("utf8")
 
@@ -140,6 +141,7 @@ function love.errorhandler(msg)
 
         ::quit::
         logging.close_all()
+        config.save_all()
         return 1
     end
 end

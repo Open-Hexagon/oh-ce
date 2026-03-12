@@ -1,6 +1,7 @@
 local input_schemes = require("input_schemes")
 local ohui = require("ohui")
 local ui_settings = ohui.settings
+local auto_gui_scale = require("ui2.auto_gui_scale")
 
 local categories, properties = ...
 
@@ -131,7 +132,7 @@ add_setting("Gameplay", "show_player_trail", false, { game_version = 21 })
 add_setting("Gameplay", "player_trail_decay", 3, {
     game_version = 21,
     dependencies = { show_player_trail = true },
-    special_min_value = "0.05",
+    min_display_text = "0.05",
     min = 0,
     max = 50,
     positions = 21,
@@ -167,15 +168,17 @@ add_setting("UI", "gui_scale", 1, {
     display_name = "GUI scale",
     min = 0,
     max = 2,
-    special_min_value = "Auto",
+    min_display_text = "Auto",
     positions = 5,
     format = "%.1fx",
     show_positions = true,
     onchange = function(value)
-        if value == "Auto" then
-            ui_settings.scale = 1
-        else
+        if value > 0 then
             ui_settings.scale = value
+        elseif value == 0 then
+            ui_settings.scale = auto_gui_scale(love.graphics.getDimensions())
+        else
+            error("invalid gui_scale value")
         end
     end,
 })
@@ -278,12 +281,12 @@ add_setting("General", "preload_all_packs", false)
 
 --#region Display settings
 
-add_setting("Display", "fps_limit", 200, {
+add_setting("Display", "fps_limit", 60, {
     display_name = "FPS limit",
     min = 30,
     max = 1005,
     positions = 196,
-    special_max_value = "Unlimited",
+    max_display_text = "Unlimited",
     inc_dec_buttons = true,
 })
 add_setting("Display", "fullscreen", "Windowed", {

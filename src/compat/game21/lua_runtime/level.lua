@@ -1,6 +1,6 @@
 local make_make_accessors = require("compat.game21.lua_runtime.make_accessors")
 local level_status = require("compat.game21.level_status")
-local config = require("config")
+local config = require("config").settings
 local status = require("compat.game21.status")
 
 return function(game)

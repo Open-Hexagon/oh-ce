@@ -9,8 +9,8 @@ local smode = mnav.sensor_mode
 local signal = require("ui2.anim.signal")
 local ease = require("ui2.anim.ease")
 local tooltip = ui.decorator.tooltip
-local config = require("config")
-local categories = config.categories
+local settings = require("config").settings
+local categories = settings.categories
 local area_element = ui.area_element
 local scroll = area_element.scroll
 local blank_background = area_element.blank_background
@@ -19,7 +19,7 @@ local toggle = ui.element.toggle
 local slider = ui.element.slider
 local switch = ui.element.switch
 
-local settings = {}
+local menu = {}
 
 local bg_color = { 0, 0, 0, 0.8 }
 
@@ -50,13 +50,31 @@ local function close()
     ui.layer.retire()
 end
 
-function settings.on_push()
+function menu.on_push()
     slide_in_out:keyframe(0.1, 0, ease.out_sine)
 end
 
-function settings.on_pop(release)
+function menu.on_pop(release)
     slide_in_out:keyframe(0.1, -menu_width, ease.out_sine)
     slide_in_out:call(release)
+end
+
+for name, property in pairs(settings.properties) do
+    local state = id[name]
+    if type(property.default) == "boolean" then
+        state.on = property.default
+    elseif property.options then
+        for i = 1, #property.options do
+            if property.options[i] == property.default then
+                state.position = i
+                goto found
+            end
+        end
+        error(string.format("%s setting default is not within options", name))
+        ::found::
+    elseif type(property.default) == "number" then
+        state.value = property.default
+    end
 end
 
 local function draw_toggle(state, property)
@@ -101,7 +119,7 @@ local function draw_slider(state, property)
     local sid = mnav.declare_sensor_id()
     local sid_plus, sid_minus
     local slider_sid = mnav.declare_sensor_id()
-    local actual_value
+    local display_value
     cursor.height = 32
     cursor.push()
     do
@@ -121,25 +139,15 @@ local function draw_slider(state, property)
 
         cursor.change_anchor(1, 0.5)
 
+        local has_incremented = false
         if property.inc_dec_buttons then
+            sid_plus = mnav.declare_sensor_id()
+            sid_minus = mnav.declare_sensor_id()
+
             cursor.width = 20
             cursor.change_anchor(0.5, 0.5)
-            sid_plus = mnav.make_sensor()
+            mnav.make_sensor(sid_plus)
             icon_button(32, "plus", sid_plus)
-            cursor.change_anchor(1, 0.5)
-            cursor.shift_left(10)
-        end
-
-        cursor.width = 150
-        mnav.make_sensor(slider_sid, smode.draggable)
-        slider(state, property.min, property.max, property.positions, property.show_positions, slider_sid)
-        cursor.shift_left(10)
-
-        if property.inc_dec_buttons then
-            cursor.width = 20
-            cursor.change_anchor(0.5, 0.5)
-            sid_minus = mnav.make_sensor()
-            icon_button(32, "hyphen", sid_minus)
             cursor.change_anchor(1, 0.5)
             cursor.shift_left(10)
 
@@ -158,27 +166,50 @@ local function draw_slider(state, property)
             else
                 if mnav.get_clicked(sid_plus) then
                     state.position = state.position + 1
+                    has_incremented = true
                 elseif mnav.get_clicked(sid_minus) then
                     state.position = state.position - 1
+                    has_incremented = true
                 end
                 property.inc_dec_buttons = 0
             end
         end
 
-        if property.special_min_value and state.value == property.min then
-            actual_value = property.special_min_value
-        elseif property.special_max_value and state.value == property.max then
-            actual_value = property.special_max_value
-        else
-            actual_value = state.value
+        cursor.width = 150
+        mnav.make_sensor(slider_sid, smode.draggable)
+        slider(state, property.min, property.max, property.positions, property.show_positions, slider_sid)
+        cursor.shift_left(10)
+
+        if property.inc_dec_buttons then
+            cursor.width = 20
+            cursor.change_anchor(0.5, 0.5)
+            mnav.make_sensor(sid_minus)
+            icon_button(32, "hyphen", sid_minus)
+            cursor.change_anchor(1, 0.5)
+            cursor.shift_left(10)
         end
 
-        if type(property.format) == "string" and type(actual_value) == "number" then
-            draw_by_cursor.label(string.format(property.format, actual_value), 20, "right", false)
-        elseif type(property.format) == "function" then
-            draw_by_cursor.label(property.format(actual_value), 20, "right", false)
+        if property.min_display_text and state.value == property.min then
+            display_value = property.min_display_text
+        elseif property.max_display_text and state.value == property.max then
+            display_value = property.max_display_text
         else
-            draw_by_cursor.label(tostring(actual_value), 20, "right", false)
+            display_value = state.value
+        end
+
+        if has_incremented or mnav.get_stopped_dragging(slider_sid) or mnav.get_clicked(slider_sid) then
+            settings.set(property.name, state.value)
+            if property.onchange then
+                property.onchange(state.value)
+            end
+        end
+
+        if type(property.format) == "string" and type(display_value) == "number" then
+            draw_by_cursor.label(string.format(property.format, display_value), 20, "right", false)
+        elseif type(property.format) == "function" then
+            draw_by_cursor.label(property.format(display_value), 20, "right", false)
+        else
+            draw_by_cursor.label(tostring(display_value), 20, "right", false)
         end
     end
     cursor.peek()
@@ -219,6 +250,7 @@ end
 
 local function draw_setting(property)
     local state = id[property.name]
+
     if type(property.default) == "boolean" then
         draw_toggle(state, property)
     elseif property.options then
@@ -243,7 +275,7 @@ end
 local A
 local last_viewed_category
 
-function settings.main()
+function menu.main()
     local screen_width = cursor.width
 
     cursor.push_translation(slide_in_out(), 0) -- (1)
@@ -298,7 +330,7 @@ function settings.main()
     for i = 1, #categories do
         local category = categories[i]
 
-        blank_background.start()
+        blank_background.start(1)
 
         draw_by_cursor.label(category.name, 32, "left", false)
         cursor.shift_down(10)
@@ -353,4 +385,4 @@ function settings.main()
     cursor.pop_translation() -- (1)
 end
 
-return settings
+return menu

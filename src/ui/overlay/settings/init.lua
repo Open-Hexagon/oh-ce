@@ -341,7 +341,7 @@ local content = flex:new({
             selectable = true,
             click_handler = function()
                 settings:close()
-                config.save()
+                config.save_global()
             end,
         }),
     }, { justify_content = "between" }),

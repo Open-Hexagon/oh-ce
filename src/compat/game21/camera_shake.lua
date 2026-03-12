@@ -1,4 +1,4 @@
-local config = require("config")
+local config = require("config").settings
 local level_status = require("compat.game21.level_status")
 local rng = require("compat.game21.random")
 local status = require("compat.game21.status")

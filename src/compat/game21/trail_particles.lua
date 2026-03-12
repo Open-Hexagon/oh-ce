@@ -1,5 +1,5 @@
 local Particles = require("compat.game21.particles")
-local config = require("config")
+local config = require("config").settings
 local player = require("compat.game21.player")
 local status = require("compat.game21.status")
 local assets = require("asset_system")

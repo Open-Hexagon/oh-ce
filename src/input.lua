@@ -1,6 +1,6 @@
 local schemes = require("input_schemes")
 local args = require("args")
-local config = require("config")
+local config = require("config").settings
 local buttons
 if not args.headless then
     -- TODO: remove

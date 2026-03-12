@@ -1,6 +1,6 @@
 local args = require("args")
 local utils = require("compat.game192.utils")
-local config = require("config")
+local config = require("config").settings
 local status = require("compat.game21.status")
 local style = require("compat.game21.style")
 local pseudo3d = {}

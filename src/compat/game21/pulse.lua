@@ -1,6 +1,6 @@
 local level_status = require("compat.game21.level_status")
 local utils = require("compat.game192.utils")
-local config = require("config")
+local config = require("config").settings
 local status = require("compat.game21.status")
 local pulse = {}
 

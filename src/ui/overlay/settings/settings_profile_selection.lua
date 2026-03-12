@@ -6,7 +6,7 @@ local flex = require("ui.layout.flex")
 local global_config = require("global_config")
 local modifyable_list = require("ui.overlay.settings.modifyable_list")
 
-local profile_name_label = label:new(config.get_profile() or "")
+local profile_name_label = label:new(config.get_current_profile() or "")
 
 local list = modifyable_list:new({
     deletion = function(name)
@@ -16,12 +16,12 @@ local list = modifyable_list:new({
         local current_profile_exists = false
         local profiles = config.list_profiles()
         for i = 1, #profiles do
-            if profiles[i] == config.get_profile() then
+            if profiles[i] == config.get_current_profile() then
                 current_profile_exists = true
             end
         end
-        if config.get_profile() ~= name and current_profile_exists then
-            config.save()
+        if config.get_current_profile() ~= name and current_profile_exists then
+            config.save_global()
         end
         global_config.set_settings_profile(name)
         for setting, value in pairs(config.get_all()) do
@@ -38,14 +38,14 @@ local list = modifyable_list:new({
                 return
             end
         end
-        config.save()
+        config.save_global()
         config.set_defaults()
         config.create_profile(name)
     end,
 })
 
 local function init()
-    list:set(config.list_profiles(), config.get_profile())
+    list:set(config.list_profiles(), config.get_current_profile())
 end
 local dropdown = collapse:new(list.layout)
 

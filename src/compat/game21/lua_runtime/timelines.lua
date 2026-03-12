@@ -1,5 +1,5 @@
 local sound = require("compat.sound")
-local config = require("config")
+local config = require("config").settings
 local level_status = require("compat.game21.level_status")
 local status = require("compat.game21.status")
 

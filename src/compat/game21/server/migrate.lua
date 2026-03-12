@@ -3,7 +3,7 @@ local database = require("server.database_thread")
 local utils = require("compat.game192.utils")
 local sqlite = require("extlibs.sqlite")
 local game_handler = require("game_handler")
-local config = require("config")
+local config = require("config").settings
 local async = require("async")
 
 async.busy_await(game_handler.init(config))

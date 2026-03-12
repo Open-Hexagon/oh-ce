@@ -149,14 +149,14 @@ function love.run()
         end
     end
 
-    local global_config = require("global_config")
+    local config = require("config")
     local game_handler = require("game_handler")
 
     if args.server and args.render then
         -- render top scores sent to the server
         local server_thread = love.thread.newThread("server/init.lua")
         server_thread:start("server", true, args.web)
-        global_config.init()
+        config.init()
         async.busy_await(game_handler.init())
         local Replay = require("game_handler.replay")
         return function()
@@ -297,7 +297,7 @@ function love.run()
         if args.replay_file == nil then
             error("Started headless mode without replay")
         end
-        global_config.init()
+        config.init()
         async.busy_await(game_handler.init())
         async.busy_await(game_handler.replay_start(args.replay_file))
         game_handler.run_until_death()
@@ -311,13 +311,13 @@ function love.run()
         if args.replay_file == nil then
             error("trying to render replay without replay")
         end
-        global_config.init()
+        config.init()
         async.busy_await(game_handler.init())
         return async.busy_await(render_replay(game_handler, args.replay_file, "output.mp4"))
     end
 
     do
-        local config = require("config")
+        local settings = config.settings
         local ohui = require("ohui")
         local ui2 = require("ui2")
 
@@ -334,11 +334,11 @@ function love.run()
         ohui.layer.set_pinned_layer(require("ui2.menu.debug"))
         ohui.layer.push(require("ui2.menu.loading"))
 
-        global_config.init()
+        config.init()
         -- apply fullscreen setting initially
         -- config.properties.fullscreen.onchange(config.get("fullscreen"))
 
-        local fps_limit = config.get("fps_limit")
+        local fps_limit = settings.get("fps_limit")
         local delta_target = 1 / fps_limit
         local last_time = love.timer.getTime()
 
@@ -370,9 +370,7 @@ function love.run()
                 if video_encoder.running then
                     video_encoder.stop()
                 end
-                if config then
-                    config.save()
-                end
+                config.save_all()
                 logging.close_all()
                 return exit_code
             end
@@ -401,7 +399,7 @@ function love.run()
             end
 
             -- ensure tickrate
-            new_fps_limit = config.get("fps_limit")
+            new_fps_limit = settings.get("fps_limit")
             if fps_limit ~= new_fps_limit then
                 fps_limit = new_fps_limit
                 delta_target = 1 / fps_limit
