@@ -182,17 +182,17 @@ add_setting("UI", "gui_scale", 1, {
         end
     end,
 })
-add_setting("UI", "background_preview_mode", "Minimal", {
+add_setting("UI", "background_preview_mode", 1, {
     options = { "Minimal", "Full" },
     onchange = function(value)
         if value == "full" then
             -- TODO: remove
-            require("ui.screens.levelselect.level").resume_preview()
-            require("ui.screens.levelselect.level").current_preview_active = false
+            -- require("ui.screens.levelselect.level").resume_preview()
+            -- require("ui.screens.levelselect.level").current_preview_active = false
         else
             -- TODO: remove
-            require("game_handler").stop()
-            require("ui.screens.levelselect.level").current_preview_active = true
+            -- require("game_handler").stop()
+            -- require("ui.screens.levelselect.level").current_preview_active = true
         end
     end,
 })
@@ -289,11 +289,11 @@ add_setting("Display", "fps_limit", 60, {
     max_display_text = "Unlimited",
     inc_dec_buttons = true,
 })
-add_setting("Display", "fullscreen", "Windowed", {
+add_setting("Display", "fullscreen", 3, {
     options = { "Exclusive", "Borderless", "Windowed" },
     onchange = function(value)
         if love.window and love.window.isOpen() then
-            love.window.setFullscreen(value ~= "Windowed", value == "Borderless" and "desktop" or "exclusive")
+            love.window.setFullscreen(value ~= 3, value == 2 and "desktop" or "exclusive")
         end
     end,
 })

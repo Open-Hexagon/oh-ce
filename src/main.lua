@@ -331,6 +331,14 @@ function love.run()
         ohui.theme.set_default("font_path", "assets/font/open-pentagon.ttf")
         ohui.theme.set_default("icon_font_path", "assets/font/open-pentagon.ttf")
 
+        -- TODO: There isn't a very reliable way to detect whether there's a physical keyboard connected to your device
+        -- TODO: This should probably be replaced by something better.
+        -- keep key repeat always on when using the ui
+        love.keyboard.setKeyRepeat(true)
+        if ui_settings.is_desktop then
+            love.keyboard.setTextInput(true)
+        end
+
         ohui.layer.set_pinned_layer(require("ui2.menu.debug"))
         ohui.layer.push(require("ui2.menu.loading"))
 

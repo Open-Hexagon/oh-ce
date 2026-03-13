@@ -33,7 +33,11 @@ local DEFAULT_PREAMBLE_FORMAT = "%thread_id [%level] [%modname]"
 ---@param modname string
 ---@param ... unknown
 local function write_all(level, modname, ...)
-    local content = " " .. table.concat({ ... }, "\t") .. "\n"
+    local strings = {}
+    for i = 1, select("#", ...) do
+        strings[i] = tostring(select(i, ...))
+    end
+    local content = " " .. table.concat(strings) .. "\n"
     for i = 1, #streams do
         if level >= stream_levels[i] then
             local level_label = (stream_level_labels[i] or DEFAULT_LEVEL_LABELS)[level] or tostring(level)
@@ -97,6 +101,9 @@ function logging.add_stream(stream, level, preamble_format, level_labels)
     stream_level_labels[next_i] = level_labels
 end
 
+---gets a logger
+---@param modname string
+---@return Logger
 function logging.get_logger(modname)
     return setmetatable({ modname = modname }, Logger)
 end

@@ -1,6 +1,6 @@
 local ui = require("ohui")
-local cursor = ui.cursor
 local theme = ui.theme
+local cursor = ui.cursor
 local draw_by_cursor = ui.draw.by_cursor
 local draw_by_id = ui.draw.by_id
 local icon_button = ui.element.icon_button
@@ -18,10 +18,24 @@ local id = ui.new_id_table()
 local toggle = ui.element.toggle
 local slider = ui.element.slider
 local switch = ui.element.switch
+local profile_switcher_menu = require("src.ui2.menu.settings.profile_switcher")
+
+-- set up colors
+theme.set_default("settings_menu_bg_color", { 0.13, 0.15, 0.19, 1 })
+theme.set_default("settings_menu_div_shadow_color", { 0, 0, 0, 0.5 })
+theme.set_default("settings_menu_right_shadow_color", { 0, 0, 0, 0.2 })
+theme.set_default(
+    "settings_menu_fade_down_shader",
+    love.graphics.newShader([[
+vec4 effect(vec4 color, Image tex, vec2 texture_coords, vec2 screen_coords)
+{
+    color.a *= 1 - texture_coords.y;
+    return color;
+}
+]])
+)
 
 local menu = {}
-
-local bg_color = { 0, 0, 0, 0.8 }
 
 local category_icons = {
     Gameplay = "hexagon",
@@ -50,31 +64,34 @@ local function close()
     ui.layer.retire()
 end
 
+local settings_table = settings.get_all()
+
+local function refresh_visuals()
+    for name, property in pairs(settings.properties) do
+        local state = id[name]
+        state.initialized = nil
+        if type(property.default) == "boolean" then
+            state.on = settings_table[name]
+        elseif property.options then
+            state.position = settings_table[name]
+        elseif type(property.default) == "number" then
+            state.value = settings_table[name]
+        end
+    end
+end
+
 function menu.on_push()
     slide_in_out:keyframe(0.1, 0, ease.out_sine)
+    refresh_visuals()
+end
+
+function menu.on_reveal()
+    refresh_visuals()
 end
 
 function menu.on_pop(release)
     slide_in_out:keyframe(0.1, -menu_width, ease.out_sine)
     slide_in_out:call(release)
-end
-
-for name, property in pairs(settings.properties) do
-    local state = id[name]
-    if type(property.default) == "boolean" then
-        state.on = property.default
-    elseif property.options then
-        for i = 1, #property.options do
-            if property.options[i] == property.default then
-                state.position = i
-                goto found
-            end
-        end
-        error(string.format("%s setting default is not within options", name))
-        ::found::
-    elseif type(property.default) == "number" then
-        state.value = property.default
-    end
 end
 
 local function draw_toggle(state, property)
@@ -104,6 +121,12 @@ local function draw_toggle(state, property)
         end
         if property.tooltip then
             tooltip("right", property.tooltip, 20, "left", nil, nil, sid)
+        end
+        if mnav.get_clicked(sid) then
+            settings.set(property.name, state.on)
+            if property.onchange then
+                property.onchange(state.value)
+            end
         end
     end
     cursor.peek()
@@ -239,7 +262,15 @@ local function draw_switch(state, property)
 
         cursor.change_anchor(1, 0.5)
         cursor.width = 120 * #property.options
+        local old_position = state.position
         switch(state, sid, unpack(property.options))
+
+        if mnav.get_clicked(sid) and old_position ~= state.position then
+            settings.set(property.name, state.position)
+            if property.onchange then
+                property.onchange(state.position)
+            end
+        end
     end
     cursor.peek()
     cursor.h_stretch(100)
@@ -283,20 +314,33 @@ function menu.main()
     cursor.v_split(math.min(menu_width, screen_width)) -- (2)
     cursor.pop() -- (2.1)
 
-    draw_by_cursor.rectangle(bg_color)
+    draw_by_cursor.rectangle(theme.settings_menu_bg_color)
 
     cursor.v_split(category_bar_width) --(3)
     cursor.pop() -- (3.1)
 
     --#region category bar
 
+    -- TODO category bar should get a scroll
     cursor.change_anchor(0.5, 0)
+
     icon_button(category_icon_size, "arrow-left-circle-fill")
     tooltip("right", "Back", 24, "left")
     cursor.shift_down()
     if mnav.get_clicked() then
         close()
     end
+
+    icon_button(category_icon_size, "person-circle")
+    tooltip("right", "Profiles", 24, "left")
+    if mnav.get_clicked() then
+        ui.layer.push(profile_switcher_menu)
+    end
+
+    cursor.shift_down()
+    cursor.height = 10
+    draw_by_cursor.h_center_line(theme.white, 2)
+    cursor.shift_down()
 
     local jump_to_category = nil
 
@@ -360,7 +404,11 @@ function menu.main()
 
     scroll.finish(8, 12, 8, 28, 200)
 
-    draw_by_cursor.top_line(theme.white, 2, "inside", 0.5)
+    ui.draw.set_shader(theme.settings_menu_fade_down_shader)
+    cursor.height = 8
+    -- shaders don't work on lines like you'd expect
+    draw_by_cursor.rectangle(theme.settings_menu_div_shadow_color)
+    ui.draw.set_shader()
 
     --#endregion
 
@@ -376,7 +424,7 @@ function menu.main()
 
     cursor.pop() -- (2.2)
 
-    draw_by_cursor.vline({ 0, 0, 0, 0.2 }, 5, 0)
+    draw_by_cursor.vline(theme.settings_menu_right_shadow_color, 5, 0)
     mnav.make_sensor()
     if mnav.get_clicked() then
         close()
