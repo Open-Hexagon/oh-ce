@@ -201,9 +201,14 @@ function menu.main()
     cursor.clip(12, 4, 24, 0)
     cursor.height = 32
     cursor.change_anchor(0, 0.5)
-    for i = 1, #profile_registry_list do
+
+    -- use a while loop since the profile registry list might change length while iterating
+    local i = 1
+    while i <= #profile_registry_list do
         draw_setting_profile_entry(profile_registry_list[i])
+        i = i + 1
     end
+
     typing.make_text_entry(create_state, create_profile_sid)
     if typing.is_editing(create_state) then
         typing.draw_text_entry(24, "new profile")
