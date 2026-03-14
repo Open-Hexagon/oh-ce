@@ -86,12 +86,34 @@ local dirty = false
 ---This is a shortcut to the settings_profile_registry in the global settings table
 local sp_registry
 
--- deletes entries in the sp_registry that aren't on disk
-local function clean_sp_registry()
+local function sync_sp_registry()
+    local lost_and_found, spurious = 0, 0
+    -- find any unlisted json files
+    local filenames = love.filesystem.getDirectoryItems(SETTINGS_PROFILE_PATH)
+    for i = 1, #filenames do
+        local dir_ident = string.match(filenames[i], "(.+)%.json")
+        for _, ident in pairs(sp_registry) do
+            if dir_ident == ident then
+                goto found
+            end
+        end
+        sp_registry[dir_ident] = dir_ident
+        lost_and_found = lost_and_found + 1
+        ::found::
+    end
+    if lost_and_found > 0 then
+        settings_logger:info("recovered ", lost_and_found, " settings profiles")
+    end
+
+    -- delete any spurious registry entries
     for name, ident in pairs(sp_registry) do
         if not love.filesystem.getInfo(to_settings_path(ident)) then
             sp_registry[name] = nil
+            spurious = spurious + 1
         end
+    end
+    if spurious > 0 then
+        settings_logger:info("removed ", spurious, " spurious settings profile registry entries")
     end
 end
 
@@ -258,6 +280,29 @@ local function load_from_json(path, where)
     end
 end
 
+---Tries to save settings to a file. May replace the identifier if something goes wrong.
+---Will trow an error if unable to save.
+local function try_save_settings_to_json(ident, what)
+    -- check for special characters
+    local needs_new_ident = not not string.match(ident, "[^%w _-]")
+    ::again::
+    if needs_new_ident then
+        ident = get_random_identifier()
+    end
+    local path = to_settings_path(ident)
+    local success, msg = pcall(save_to_json, path, what)
+    if not success then
+        if needs_new_ident then
+            -- identifier has already been replaced, something else has caused this failure.
+            error(msg)
+        end
+        -- try again but replace the identifier
+        needs_new_ident = true
+        goto again
+    end
+    return ident
+end
+
 local function create_profile(name)
     if #name == 0 then
         error("new name can't be empty")
@@ -265,13 +310,12 @@ local function create_profile(name)
     if sp_registry[name] then
         error("profile with name '" .. name .. "' already exists")
     end
-    local ident = get_random_identifier()
     local new_profile = {}
     set_defaults(new_profile)
-    save_to_json(to_settings_path(ident), new_profile)
+    local ident = try_save_settings_to_json(name, new_profile)
     sp_registry[name] = ident
     sp_display_list_add(name)
-    settings_logger:info("created new settings profile '", name, "'")
+    settings_logger:info("created new settings profile '", name, "' at '", to_settings_path(ident), "'")
 end
 
 local function delete_profile(name)
@@ -286,7 +330,7 @@ local function delete_profile(name)
     love.filesystem.remove(to_settings_path(ident))
     sp_registry[name] = nil
     sp_display_list_remove(name)
-    settings_logger:info("deleted settings profile '", name, "'")
+    settings_logger:info("deleted settings profile '", name, "' at '", to_settings_path(ident), "'")
 end
 
 local function copy_profile(target_name, new_name)
@@ -306,10 +350,18 @@ local function copy_profile(target_name, new_name)
     local new_ident = get_random_identifier()
     local buf = {}
     load_from_json(to_settings_path(target_ident), buf)
-    save_to_json(to_settings_path(new_ident), buf)
+    new_ident = try_save_settings_to_json(new_name, buf)
     sp_registry[new_name] = new_ident
     sp_display_list_add(new_name)
-    settings_logger:info("copied settings profile '", target_name, "' to '", new_name, "'")
+    settings_logger:info(
+        "copied settings profile '",
+        target_name,
+        "' to '",
+        new_name,
+        "' at '",
+        to_settings_path(new_ident),
+        "'"
+    )
 end
 
 local function rename_profile(old_name, new_name)
@@ -329,7 +381,15 @@ local function rename_profile(old_name, new_name)
     sp_registry[new_name] = ident
     sp_registry[old_name] = nil
     sp_display_list_replace(old_name, new_name)
-    settings_logger:info("renamed settings profile '", old_name, "' to '", new_name, "'")
+    settings_logger:info(
+        "renamed settings profile '",
+        old_name,
+        "' to '",
+        new_name,
+        "' at '",
+        to_settings_path(ident),
+        "'"
+    )
 end
 
 local function reset_profile(name)
@@ -339,8 +399,9 @@ local function reset_profile(name)
     end
     local buf = {}
     set_defaults(buf)
-    save_to_json(to_settings_path(ident), buf)
-    settings_logger:info("reset settings profile '", name, "'")
+    ident = try_save_settings_to_json(ident, buf)
+    sp_registry[name] = ident
+    settings_logger:info("reset settings profile '", name, "' at '", to_settings_path(ident), "'")
 end
 
 ---Saves the currently opened profile if it's dirty.
@@ -352,10 +413,10 @@ local function save_current_profile()
     local name = global_settings.settings_profile
     local ident = sp_registry[name]
     assert(ident, "global_settings.settings_profile has an invalid value")
-    local path = to_settings_path(ident)
-    save_to_json(path, current_settings)
+    ident = try_save_settings_to_json(ident, current_settings)
+    sp_registry[name] = ident
     dirty = false
-    settings_logger:info("saved settings profile '", name, "' to '", path, "'")
+    settings_logger:info("saved settings profile '", name, "' to '", to_settings_path(ident), "'")
 end
 
 local function open_profile(name)
@@ -511,7 +572,7 @@ do
         sp_registry = global_settings.settings_profile_registry
     end
 
-    clean_sp_registry()
+    sync_sp_registry()
     load_sp_display_list_from_registry()
 
     if type(global_settings.settings_profile) ~= "string" then
