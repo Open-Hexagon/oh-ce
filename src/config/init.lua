@@ -3,8 +3,10 @@ local json = require("extlibs.json.json-beautify")
 local profile = require("game_handler.profile")
 local logging = require("logging")
 local config_logger = logging.get_logger(modname)
+local buffer = require("string.buffer")
+table.clear = require("table.clear")
 
----Saves a table into a json file
+---Saves a table into a json file. Might throw an error.
 ---@param path string
 ---@param what table
 local function save_to_json(path, what)
@@ -18,354 +20,543 @@ end
 
 local config = {}
 
-local global = {}
-do
-    local global_logger = logging.get_logger(modname .. ".global")
+--#region GLOBAL SETTINGS
 
-    local GLOBAL_SETTINGS_PATH = "config.json"
-    local global_settings = {}
-    local dirty = false
+local global_logger = logging.get_logger(modname .. ".global")
+local GLOBAL_SETTINGS_PATH = "config.json"
+local global_settings = {}
+config.global_settings = global_settings
 
-    ---Sets a global setting. Also sets the dirty flag.
-    ---@param name string
-    ---@param value any
-    function global.set(name, value)
-        if global_settings[name] ~= value then
-            global_settings[name] = value
-            dirty = true
-            global_logger:debug("set '", name, "' to '", value, "'")
-        end
+---Saves global settings to disk. Might throw an error.
+local function global_save()
+    save_to_json(GLOBAL_SETTINGS_PATH, global_settings)
+    global_logger:info("saved '", GLOBAL_SETTINGS_PATH, "'")
+end
+
+---Loads global settings from disk. Might throw an error.
+local function global_load()
+    local file, msg = love.filesystem.openFile(GLOBAL_SETTINGS_PATH, "r")
+    if not file then
+        error(msg)
     end
+    global_settings = json.decode(file:read())
+    file:close()
+    global_logger:info("loaded '", GLOBAL_SETTINGS_PATH, "'")
+end
 
-    ---Gets a global setting.
-    ---@param name string
-    ---@return any
-    function global.get(name)
-        return global_settings[name]
-    end
+--#endregion
 
-    ---Saves global settings if they're dirty. Raises an error if it can't save.
-    ---Clears the dirty flag.
-    function global.save()
-        if not dirty then
-            return
-        end
-        save_to_json(GLOBAL_SETTINGS_PATH, global_settings)
-        dirty = false
-        global_logger:info("saved '", GLOBAL_SETTINGS_PATH, "'")
-    end
+--#region SETTINGS PROFILES
+-- profiles here refer to setting profiles which should not be confused with game profiles!
 
-    ---Loads global settings from disk. Raises an error if file isn't found.
-    ---Clears the dirty flag.
-    function global.load()
-        local file, msg = love.filesystem.openFile(GLOBAL_SETTINGS_PATH, "r")
-        if not file then
-            error(msg)
-        end
-        global_settings = json.decode(file:read())
-        file:close()
-        dirty = false
-        global_logger:info("loaded '", GLOBAL_SETTINGS_PATH, "'")
+local settings_logger = logging.get_logger(modname .. ".settings")
+
+-- check for this folder's existence
+local SETTINGS_PROFILE_PATH = "settings/"
+if not love.filesystem.getInfo(SETTINGS_PROFILE_PATH) then
+    if not love.filesystem.createDirectory(SETTINGS_PROFILE_PATH) then
+        -- set this flag if we for some reason can't make the directory
+        settings_logger:warning("Settings directory is unavailable. Expect errors.")
     end
 end
-config.global = global
+
+local function to_settings_path(ident)
+    return SETTINGS_PROFILE_PATH .. ident .. ".json"
+end
 
 local settings = {}
-do
-    -- profiles here refer to setting profiles which should not be confused with game profiles!
-
-    local settings_logger = logging.get_logger(modname .. ".settings")
-
-    local PROFILE_PATH = "settings/"
-    if not love.filesystem.getInfo(PROFILE_PATH) then
-        if not love.filesystem.createDirectory(PROFILE_PATH) then
-        end
-    end
-
-    -- setting definitions
-    local properties = {}
-    local categories = {}
-    categories.hidden = { name = "hidden" }
-    settings.categories = categories
-    settings.properties = properties
-
-    -- load setting definitions
-    loadfile("src/config/setting_definitions.lua")(categories, properties)
-
-    -- current profile setting values
-    local current_settings = {}
-    local dirty = false
-
-    local profile_registry = {}
-    settings.profile_registry = profile_registry
-
-    local function refresh_profile_registry()
-        local filenames = love.filesystem.getDirectoryItems(PROFILE_PATH)
-        local profile_name
-        local num_filenames = #filenames
-        for i = 1, math.max(#profile_registry, num_filenames) do
-            if i <= num_filenames then
-                profile_name = string.match(filenames[i], "^(.+)%.json$")
-                if profile_name then
-                    profile_registry[i] = profile_name
-                end
-            else
-                profile_registry[i] = nil
-            end
-        end
-        table.sort(profile_registry)
-    end
-
-    refresh_profile_registry()
-
-    ---@param what table
-    local function set_defaults(what)
-        for name, values in pairs(properties) do
-            what[name] = values.default
-        end
-    end
-
-    ---loads the config from a json file
-    ---@param path string
-    ---@param where table where to put settings
-    local function load_from_json(path, where)
-        -- reset the settings before loading in case some settings didn't exist yet in the config file
-        set_defaults(where)
-        local file = love.filesystem.openFile(path, "r")
-        local contents = file:read()
-        file:close()
-        for name, value in pairs(json.decode(contents)) do
-            where[name] = value
-        end
-    end
-
-    local function create_profile(name)
-        local path = PROFILE_PATH .. name .. ".json"
-        if love.filesystem.getInfo(path) then
-            error("profile with name '" .. name .. "' already exists!")
-        end
-        local new_profile = {}
-        set_defaults(new_profile)
-        save_to_json(path, new_profile)
-    end
-
-    local function delete_profile(name)
-        local path = PROFILE_PATH .. name .. ".json"
-        if not love.filesystem.getInfo(path) then
-            error("profile with name '" .. name .. "' doesn't exist!")
-        end
-        love.filesystem.remove(path)
-    end
-
-    local function copy_profile(old_name, new_name)
-        if old_name == new_name then
-            error("old name and new name are the same")
-        end
-        local old_path = PROFILE_PATH .. old_name .. ".json"
-        local new_path = PROFILE_PATH .. new_name .. ".json"
-        if love.filesystem.getInfo(new_path) then
-            error("profile with name '" .. new_name .. "' already exists!")
-        end
-        if not love.filesystem.getInfo(old_path) then
-            error("profile with name '" .. old_name .. "' doesn't exist!")
-        end
-        local buffer = {}
-        load_from_json(old_path, buffer)
-        save_to_json(new_path, buffer)
-    end
-
-    local function reset_profile(name)
-        local path = PROFILE_PATH .. name .. ".json"
-        if not love.filesystem.getInfo(path) then
-            error("profile with name '" .. name .. "' doesn't exist!")
-        end
-        local buffer = {}
-        set_defaults(buffer)
-        save_to_json(path, buffer)
-    end
-
-    ---gets the current profile name
-    ---@return string
-    function settings.get_current_profile()
-        return global.get("settings_profile")
-    end
-
-    ---Resets all settings. Sets the dirty flag
-    function settings.set_defaults()
-        set_defaults(current_settings)
-        dirty = true
-    end
-
-    ---Sets a setting to a value. Sets the dirty flag
-    ---@param name string internal setting name
-    ---@param value any
-    function settings.set(name, value)
-        current_settings[name] = value
-        dirty = true
-        settings_logger:debug("set '", name, "' to '", value, "'")
-    end
-
-    ---Gets a setting (returns the default for settings that cannot be changed in official mode if official mode is on).
-    ---Returns nil if setting doesn't exist.
-    ---@param name string internal setting name
-    ---@return any
-    function settings.get(name)
-        local value = current_settings[name]
-        local property = properties[name]
-        if not property then
-            return
-        end
-        if current_settings.official_mode and not property.can_change_in_offical and value ~= property.default then
-            return properties[name].default
-        else
-            return value
-        end
-    end
-
-    ---gets a table of all settings or all settings for a certain game version
-    ---@param game_version number|nil
-    ---@return table
-    function settings.get_all(game_version)
-        if game_version == nil then
-            return current_settings
-        elseif type(game_version) == "number" then
-            local game_settings = {}
-            for name, property in pairs(properties) do
-                if property.game ~= nil then
-                    local has_version = false
-                    if type(property.game) == "table" then
-                        for i = 1, #property.game do
-                            if property.game[i] == game_version then
-                                has_version = true
-                                break
-                            end
-                        end
-                    elseif type(property.game) == "number" then
-                        if property.game == game_version then
-                            has_version = true
-                        end
-                    end
-                    if has_version then
-                        game_settings[name] = settings.get(name)
-                    end
-                end
-            end
-            return game_settings
-        else
-            error("game_version should be a number")
-        end
-    end
-
-    ---Creates a new profile (raises an error if one with the same name already exists).
-    ---Settings all start at defaults.
-    ---@param name string
-    function settings.create_profile(name)
-        create_profile(name)
-        refresh_profile_registry()
-        settings_logger:info("created new settings profile '", name, "'")
-    end
-
-    ---Deletes a profile (raises an error if it doesn't exist).
-    ---Deleting the current profile is allowed, but if current_profile isn't changed
-    ---to something else, the file will come back if a new profile is opened.
-    ---@param name string
-    function settings.delete_profile(name)
-        delete_profile(name)
-        refresh_profile_registry()
-        settings_logger:info("deleted settings profile '", name, "'")
-    end
-
-    ---@param old_name string
-    ---@param new_name string
-    function settings.copy_profile(old_name, new_name)
-        copy_profile(old_name, new_name)
-        refresh_profile_registry()
-        settings_logger:info("copied settings profile '", old_name, "' to '", new_name, "'")
-    end
-
-    ---@param old_name string
-    ---@param new_name string
-    function settings.rename_profile(old_name, new_name)
-        copy_profile(old_name, new_name)
-        delete_profile(old_name)
-        if old_name == config.global.get("settings_profile") then
-            config.global.set("settings_profile", new_name)
-        end
-        refresh_profile_registry()
-        settings_logger:info("renamed settings profile '", old_name, "' to '", new_name, "'")
-    end
-
-    ---@param name string
-    function settings.reset_profile(name)
-        if name == config.global.get("settings_profile") then
-            set_defaults(current_settings)
-        else
-            reset_profile(name)
-        end
-        settings_logger:info("reset settings profile '", name, "'")
-    end
-
-    ---Opens a profile (raises an error if it doesn't exist). Saves the previous profile.
-    ---@param name string
-    function settings.open_profile(name)
-        local path = PROFILE_PATH .. name .. ".json"
-        if not love.filesystem.getInfo(path) then
-            error("profile with name '" .. name .. "' doesn't exist!")
-        end
-        settings.save_current_profile()
-        load_from_json(path, current_settings)
-        config.global.set("settings_profile", name)
-        settings_logger:info("opened settings profile '", path, "'")
-    end
-
-    ---Saves the current profile if it's dirty.
-    ---Clears the dirty flag.
-    function settings.save_current_profile()
-        if not dirty then
-            return
-        end
-        local path = PROFILE_PATH .. settings.get_current_profile() .. ".json"
-        save_to_json(path, current_settings)
-        dirty = false
-        settings_logger:info("saved settings profile '", path, "'")
-    end
-end
 config.settings = settings
 
+-- setting definitions
+local properties = {}
+local categories = {}
+categories.hidden = { name = "hidden" }
+settings.categories = categories
+settings.properties = properties
+
+-- load setting definitions
+loadfile("src/config/setting_definitions.lua")(categories, properties)
+
+-- current profile setting values
+local current_settings = {}
+local dirty = false
+
+-- ! User generated filenames are inherently unsafe.
+
+---This is a shortcut to the settings_profile_registry in the global settings table
+local sp_registry
+
+-- deletes entries in the sp_registry that aren't on disk
+local function clean_sp_registry()
+    for name, ident in pairs(sp_registry) do
+        if not love.filesystem.getInfo(to_settings_path(ident)) then
+            sp_registry[name] = nil
+        end
+    end
+end
+
+--#region sp_display_list
+
+-- A list of profile names for displaying profiles
+local sp_display_list = {}
+settings.profile_display_list = sp_display_list
+
+local function sp_display_list_add(name)
+    table.insert(sp_display_list, name)
+end
+
+local function sp_display_list_remove(name)
+    for i = 1, #sp_display_list do
+        if sp_display_list[i] == name then
+            table.remove(sp_display_list, i)
+            return
+        end
+    end
+end
+
+local function sp_display_list_replace(old_name, new_name)
+    for i = 1, #sp_display_list do
+        if sp_display_list[i] == old_name then
+            sp_display_list[i] = new_name
+            return
+        end
+    end
+end
+
+local function sort_sp_display_list(reverse_order)
+    if reverse_order then
+        table.sort(sp_display_list, function(a, b)
+            return a > b
+        end)
+    else
+        table.sort(sp_display_list)
+    end
+end
+settings.sort_profile_display_list = sort_sp_display_list
+
+local function load_sp_display_list_from_registry()
+    table.clear(sp_display_list)
+    for profile_name, _ in pairs(sp_registry) do
+        table.insert(sp_display_list, profile_name)
+    end
+    sort_sp_display_list()
+    settings_logger:info("loaded ", #sp_display_list, " names into the display list")
+end
+
+--#endregion
+
+--#region current settings setters/getters
+
+---Sets a setting to a value. Sets the dirty flag.
+---@param name string internal setting name
+---@param value any
+function settings.set(name, value)
+    current_settings[name] = value
+    dirty = true
+    settings_logger:debug("set '", name, "' to '", value, "'")
+end
+
+---Gets a setting (returns the default for settings that cannot be changed in official mode if official mode is on).
+---Returns nil if setting doesn't exist.
+---@param name string internal setting name
+---@return any
+---@nodiscard
+function settings.get(name)
+    local value = current_settings[name]
+    local property = properties[name]
+    if not property then
+        return
+    end
+    if current_settings.official_mode and not property.can_change_in_offical and value ~= property.default then
+        return properties[name].default
+    else
+        return value
+    end
+end
+
+---gets a table of all settings or all settings for a certain game version
+---@param game_version number|nil
+---@return table
+---@nodiscard
+function settings.get_all(game_version)
+    if game_version == nil then
+        return current_settings
+    elseif type(game_version) == "number" then
+        local game_settings = {}
+        for name, property in pairs(properties) do
+            if property.game ~= nil then
+                local has_version = false
+                if type(property.game) == "table" then
+                    for i = 1, #property.game do
+                        if property.game[i] == game_version then
+                            has_version = true
+                            break
+                        end
+                    end
+                elseif type(property.game) == "number" then
+                    if property.game == game_version then
+                        has_version = true
+                    end
+                end
+                if has_version then
+                    game_settings[name] = settings.get(name)
+                end
+            end
+        end
+        return game_settings
+    else
+        error("game_version should be a number")
+    end
+end
+
+--#endregion
+
+local RANDSTR = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+local RANDLEN = 8
+local function get_random_identifier()
+    local buf, c, path, ident
+    buf = buffer.new(RANDLEN)
+    ::again::
+    for _ = 1, RANDLEN do
+        c = math.random(1, #RANDSTR)
+        buf:put(RANDSTR:sub(c, c))
+    end
+    ident = buf:tostring()
+    path = to_settings_path(ident)
+    if love.filesystem.getInfo(path) then
+        buf:reset()
+        goto again
+    end
+    return ident
+end
+
+---Puts all default settings into a table.
+---@param what table
+local function set_defaults(what)
+    for name, values in pairs(properties) do
+        what[name] = values.default
+    end
+end
+
+--#region profile management
+-- all of these functions may throw errors for various reasons
+
+---Loads the config from a json file. Might throw an error.
+---@param path string
+---@param where table
+local function load_from_json(path, where)
+    local file, msg = love.filesystem.openFile(path, "r")
+    if not file then
+        error(msg)
+    end
+    local contents = file:read()
+    file:close()
+    -- reset the settings before loading in case some settings didn't exist yet in the config file
+    set_defaults(where)
+    for name, value in pairs(json.decode(contents)) do
+        where[name] = value
+    end
+end
+
+local function create_profile(name)
+    if #name == 0 then
+        error("new name can't be empty")
+    end
+    if sp_registry[name] then
+        error("profile with name '" .. name .. "' already exists")
+    end
+    local ident = get_random_identifier()
+    local new_profile = {}
+    set_defaults(new_profile)
+    save_to_json(to_settings_path(ident), new_profile)
+    sp_registry[name] = ident
+    sp_display_list_add(name)
+    settings_logger:info("created new settings profile '", name, "'")
+end
+
+local function delete_profile(name)
+    if #sp_display_list <= 1 then
+        error("cannot delete the last profile")
+    end
+    local ident = sp_registry[name]
+    if not ident then
+        error("profile with name '" .. name .. "' doesn't exist")
+    end
+    -- if file removal fails for some reason it doesn't really cause any harm
+    love.filesystem.remove(to_settings_path(ident))
+    sp_registry[name] = nil
+    sp_display_list_remove(name)
+    settings_logger:info("deleted settings profile '", name, "'")
+end
+
+local function copy_profile(target_name, new_name)
+    if #new_name == 0 then
+        error("new name can't be empty")
+    end
+    if target_name == new_name then
+        error("old name and new name are the same")
+    end
+    local target_ident = sp_registry[target_name]
+    if not target_ident then
+        error("profile with name '" .. target_name .. "' doesn't exist")
+    end
+    if sp_registry[new_name] then
+        error("profile with name '" .. new_name .. "' already exists")
+    end
+    local new_ident = get_random_identifier()
+    local buf = {}
+    load_from_json(to_settings_path(target_ident), buf)
+    save_to_json(to_settings_path(new_ident), buf)
+    sp_registry[new_name] = new_ident
+    sp_display_list_add(new_name)
+    settings_logger:info("copied settings profile '", target_name, "' to '", new_name, "'")
+end
+
+local function rename_profile(old_name, new_name)
+    if #new_name == 0 then
+        error("new name can't be empty")
+    end
+    if old_name == new_name then
+        error("old name and new name are the same")
+    end
+    local ident = sp_registry[old_name]
+    if not ident then
+        error("profile with name '" .. old_name .. "' doesn't exist")
+    end
+    if sp_registry[new_name] then
+        error("profile with name '" .. new_name .. "' already exists")
+    end
+    sp_registry[new_name] = ident
+    sp_registry[old_name] = nil
+    sp_display_list_replace(old_name, new_name)
+    settings_logger:info("renamed settings profile '", old_name, "' to '", new_name, "'")
+end
+
+local function reset_profile(name)
+    local ident = sp_registry[name]
+    if not ident then
+        error("profile with name '" .. name .. "' doesn't exist")
+    end
+    local buf = {}
+    set_defaults(buf)
+    save_to_json(to_settings_path(ident), buf)
+    settings_logger:info("reset settings profile '", name, "'")
+end
+
+---Saves the currently opened profile if it's dirty.
+---Clears the dirty flag.
+local function save_current_profile()
+    if not dirty then
+        return
+    end
+    local name = global_settings.settings_profile
+    local ident = sp_registry[name]
+    assert(ident, "global_settings.settings_profile has an invalid value")
+    local path = to_settings_path(ident)
+    save_to_json(path, current_settings)
+    dirty = false
+    settings_logger:info("saved settings profile '", name, "' to '", path, "'")
+end
+
+local function open_profile(name)
+    local ident = sp_registry[name]
+    if not ident then
+        error("profile with name '" .. name .. "' doesn't exist")
+    end
+    save_current_profile()
+    local path = to_settings_path(ident)
+    load_from_json(path, current_settings)
+    global_settings.settings_profile = name
+    settings_logger:info("opened settings profile '", name, "' from '", path, "'")
+end
+
+--#endregion
+
+---Creates a new profile. Settings all start at defaults.
+---@param name string
+---@return boolean success
+---@return string? msg
+---@nodiscard
+function settings.create_profile(name)
+    local success, msg = pcall(create_profile, name)
+    if not success then
+        settings_logger:info("failed to create new settings profile '", name, "': ", msg)
+    end
+    return success, msg
+end
+
+---Deletes a profile. Throws an error if there's only 1 profile left.
+---Switches to the first profile in the display list if the current profile gets deleted.
+---@param name string
+---@return boolean success
+---@return string? msg
+---@nodiscard
+function settings.delete_profile(name)
+    local success, msg = pcall(delete_profile, name)
+    if not success then
+        settings_logger:info("failed to delete settings profile '", name, "': ", msg)
+    else
+        if name == global_settings.settings_profile then
+            global_settings.settings_profile = sp_display_list[1]
+        end
+    end
+    return success, msg
+end
+
+---Copies a profile.
+---@param target_name string
+---@param new_name string
+---@return boolean success
+---@return string? msg
+---@nodiscard
+function settings.copy_profile(target_name, new_name)
+    local success, msg = pcall(copy_profile, target_name, new_name)
+    if not success then
+        settings_logger:info("failed to copy settings profile '", target_name, "' to '", new_name, "': ", msg)
+    end
+    return success, msg
+end
+
+---Renames a profile.
+---@param old_name string
+---@param new_name string
+---@return boolean success
+---@return string? msg
+---@nodiscard
+function settings.rename_profile(old_name, new_name)
+    local success, msg = pcall(rename_profile, old_name, new_name)
+    if not success then
+        settings_logger:info("failed to rename settings profile '", old_name, "' to '", new_name, "': ", msg)
+    else
+        if old_name == global_settings.settings_profile then
+            global_settings.settings_profile = new_name
+        end
+    end
+    return success, msg
+end
+
+---Sets a profile to defaults.
+---@param name string
+---@return boolean success
+---@return string? msg
+---@nodiscard
+function settings.reset_profile(name)
+    if name == global_settings.settings_profile then
+        set_defaults(current_settings)
+        dirty = true
+        return true
+    else
+        local success, msg = pcall(reset_profile, name)
+        if not success then
+            settings_logger:info("failed to reset settings profile '", name, "': ", msg)
+        end
+        return success, msg
+    end
+end
+
+---Opens a profile. Saves the previous profile.
+---@param name string
+---@return boolean success
+---@return string? msg
+---@nodiscard
+function settings.open_profile(name)
+    local success, msg = pcall(open_profile, name)
+    if not success then
+        settings_logger:info("failed to open settings profile '", name, "': ", msg)
+    end
+    return success, msg
+end
+
+---gets the current settings profile
+---@return string
+---@nodiscard
+function settings.get_current_profile()
+    return global_settings.settings_profile
+end
+
+--#endregion
+
 local function try_global_save()
-    local success, msg = pcall(global.save)
+    local success, msg = pcall(global_save)
     if not success then
         -- if you somehow got here your disk is probably failing or something
         config_logger:warning("failed to save global config: '", msg, "'")
     end
 end
 
+local function try_current_settings_save()
+    local success, msg = pcall(save_current_profile)
+    if not success then
+        config_logger:warning("failed to save current settings profile: '", msg, "'")
+    end
+end
+
 ---Open the config file and initialize profiles.
 ---If files are damaged, will repair them.
-function config.init()
-    local success, msg, sp_name, gp_name
+do
+    local global_load_success, success, msg, sp_name, gp_name
 
-    success, msg = pcall(global.load)
-    if not success then
-        config_logger:info(msg, " Recreating using defaults.")
-        global.set("settings_profile", "default")
-        global.set("game_profile", "default")
-        try_global_save()
+    -- try to load (can only fail because of filesystem errors)
+    global_load_success, msg = pcall(global_load)
+    if not global_load_success then
+        config_logger:info("failed to load global config: ", msg)
     end
 
-    sp_name = global.get("settings_profile")
-    gp_name = global.get("game_profile")
+    -- set up global config or try to restore values if missing
+    if type(global_settings.settings_profile_registry) ~= "table" then
+        config_logger:info("restoring settings_profile_registry")
+        sp_registry = {}
+        global_settings.settings_profile_registry = sp_registry
+    else
+        sp_registry = global_settings.settings_profile_registry
+    end
+
+    clean_sp_registry()
+    load_sp_display_list_from_registry()
+
+    if type(global_settings.settings_profile) ~= "string" then
+        local profile_name = sp_display_list[1]
+        if profile_name then
+            config_logger:info("restoring settings_profile value to '", profile_name, "' (from registry)")
+            global_settings.settings_profile = profile_name
+        else
+            config_logger:info("restoring settings_profile value to 'default'")
+            global_settings.settings_profile = "default"
+        end
+    end
+
+    if type(global_settings.game_profile) ~= "string" then
+        config_logger:info("restoring game_profile value to 'default'")
+        global_settings.game_profile = "default"
+    end
+
+    sp_name = global_settings.settings_profile
     config_logger:debug("settings_profile: '", sp_name, "'")
+
+    gp_name = global_settings.game_profile
     config_logger:debug("game_profile: '", gp_name, "'")
 
-    success, msg = pcall(settings.open_profile, sp_name)
+    -- try to open the settings profile
+    success, msg = settings.open_profile(sp_name)
     if not success then
-        config_logger:info(msg, "; recreating using defaults.")
-        settings.create_profile(sp_name)
-        settings.open_profile(sp_name)
+        config_logger:info("couldn't load profile '", sp_name, "': ", msg)
+        success, msg = pcall(function()
+            create_profile(sp_name)
+            open_profile(sp_name)
+        end)
+        if not success then
+            config_logger:info("couldn't restore profile: ", msg)
+            set_defaults(current_settings)
+        end
     end
 
+    ---TODO: this might become obsolete in the future.
     profile.open_or_new(gp_name)
+
+    -- recreate the config file if needed
+    if not global_load_success then
+        try_global_save()
+    end
 end
 
 ---TODO: this might become obsolete in the future.
@@ -374,12 +565,12 @@ end
 function config.set_game_profile(name)
     profile.close()
     profile.open_or_new(name)
-    config.global.set("game_profile", name)
+    global_settings.game_profile = name
 end
 
 function config.save_all()
+    try_current_settings_save()
     try_global_save()
-    settings.save_current_profile()
 end
 
 return config

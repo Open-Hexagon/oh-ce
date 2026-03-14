@@ -156,7 +156,6 @@ function love.run()
         -- render top scores sent to the server
         local server_thread = love.thread.newThread("server/init.lua")
         server_thread:start("server", true, args.web)
-        config.init()
         async.busy_await(game_handler.init())
         local Replay = require("game_handler.replay")
         return function()
@@ -297,7 +296,6 @@ function love.run()
         if args.replay_file == nil then
             error("Started headless mode without replay")
         end
-        config.init()
         async.busy_await(game_handler.init())
         async.busy_await(game_handler.replay_start(args.replay_file))
         game_handler.run_until_death()
@@ -311,7 +309,6 @@ function love.run()
         if args.replay_file == nil then
             error("trying to render replay without replay")
         end
-        config.init()
         async.busy_await(game_handler.init())
         return async.busy_await(render_replay(game_handler, args.replay_file, "output.mp4"))
     end
@@ -342,7 +339,6 @@ function love.run()
         ohui.layer.set_pinned_layer(require("ui2.menu.debug"))
         ohui.layer.push(require("ui2.menu.loading"))
 
-        config.init()
         -- apply fullscreen setting initially
         -- config.properties.fullscreen.onchange(config.get("fullscreen"))
 
