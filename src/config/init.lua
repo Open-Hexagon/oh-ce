@@ -284,7 +284,8 @@ end
 ---Will trow an error if unable to save.
 local function try_save_settings_to_json(ident, what)
     -- check for special characters
-    local needs_new_ident = not not string.match(ident, "[^%w _-]")
+    -- ident must have 1 alphanumeric character
+    local needs_new_ident = (not not string.match(ident, "[^%w _-]")) or (not string.match(ident, "%w"))
     ::again::
     if needs_new_ident then
         ident = get_random_identifier()
