@@ -75,7 +75,7 @@ return function(public, game)
                 if sound_toggle then
                     sound.play_pack(game.pack_data, level_status.beep_sound)
                 end
-                game.message_text = message:upper()
+                game.message_text = tostring(message):upper()
             end)
             game.message_timeline:append_wait_for_sixths(duration)
             game.message_timeline:append_do(function()
