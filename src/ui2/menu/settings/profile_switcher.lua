@@ -2,33 +2,28 @@ local ui = require("ohui")
 local cursor = ui.cursor
 local theme = ui.theme
 local draw_by_cursor = ui.draw.by_cursor
-local draw_by_id = ui.draw.by_id
 local icon_button = ui.element.icon_button
 local mnav = ui.control.mouse_navigation
-local smode = mnav.sensor_mode
 local signal = require("ui2.anim.signal")
 local ease = require("ui2.anim.ease")
 local tooltip = ui.decorator.tooltip
 local settings = require("config").settings
-local categories = settings.categories
 local area_element = ui.area_element
 local scroll = area_element.scroll
-local blank_background = area_element.blank_background
 local id = ui.new_id_table()
-local toggle = ui.element.toggle
-local slider = ui.element.slider
-local switch = ui.element.switch
 local checkbox = ui.element.checkbox
 local typing = ui.control.typing
 local profile_display_list = settings.profile_display_list
 
-local menu_width = 800
-local category_bar_width = 75
-local category_icon_size = 54
+local bg_color, shadow40_color, shadow20_color, menu_width, category_bar_width, category_icon_size, fade_down_shader =
+    ...
 
 local slide_in_out = signal.new_queue(-menu_width)
 
-local menu = {}
+local menu = {
+    -- used to tell the settings menu that it's okay to stop rendering the menu
+    fully_extended = false,
+}
 
 local function close()
     ui.layer.retire()
@@ -36,11 +31,15 @@ end
 
 function menu.on_push()
     slide_in_out:keyframe(0.1, 0, ease.out_sine)
+    slide_in_out:call(function()
+        menu.fully_extended = true
+    end)
 end
 
 function menu.on_pop(release)
     slide_in_out:keyframe(0.1, -menu_width, ease.out_sine)
     slide_in_out:call(release)
+    menu.fully_extended = false
 end
 
 local error_message
@@ -61,6 +60,7 @@ local function draw_setting_profile_entry(name)
     local sid = mnav.declare_sensor_id()
     local delete_sid = mnav.declare_sensor_id()
     local reset_sid = mnav.declare_sensor_id()
+    local copy_sid = mnav.declare_sensor_id()
     local rename_sid = mnav.declare_sensor_id()
 
     cursor.push()
@@ -77,13 +77,17 @@ local function draw_setting_profile_entry(name)
     -- This is so make_text_entry sees this same frame as it being clicked on.
     if mnav.get_clicked(rename_sid) then
         currently_renaming = name
+        rename_state.text = name
     end
     if currently_renaming == name then
         typing.make_text_entry(rename_state, rename_sid)
         typing.draw_text_entry(24, "Rename profile")
         if typing.stopped_editing(rename_state) then
-            if #rename_state.text > 0 then
-                success, msg = settings.rename_profile(name, rename_state.text)
+            local new_text = rename_state.text --[[@as string]]
+            -- trim leading and trailing whitespace
+            new_text = new_text:gsub("^%s*(.*)%s*$", "%1")
+            if #new_text > 0 and new_text ~= currently_renaming then
+                success, msg = settings.rename_profile(name, new_text)
                 if not success then
                     set_error_message(msg)
                 end
@@ -92,7 +96,12 @@ local function draw_setting_profile_entry(name)
             currently_renaming = nil
         end
     else
+        if mnav.is_hovering(sid) then
+            cursor.width = cursor.width - 128
+        end
+        draw_by_cursor.push_mask()
         draw_by_cursor.label(name, 24, "left", false, is_current_profile and theme.accent_color or theme.white)
+        ui.draw.pop_mask()
     end
 
     cursor.peek()
@@ -129,6 +138,21 @@ local function draw_setting_profile_entry(name)
         end
         cursor.shift_left()
 
+        mnav.make_sensor(copy_sid)
+        icon_button(24, "copy", copy_sid)
+        tooltip("bottom", "Duplicate", 16, "center")
+        if mnav.get_clicked(copy_sid) then
+            local n = 2
+            local disambiguator = " copy"
+            success = false
+            while not success do
+                success, msg = settings.copy_profile(name, name .. disambiguator)
+                disambiguator = " copy" .. n
+                n = n + 1
+            end
+        end
+        cursor.shift_left()
+
         mnav.make_sensor(rename_sid)
         icon_button(24, "pencil", rename_sid)
         tooltip("bottom", "Rename", 16, "center")
@@ -139,6 +163,7 @@ local function draw_setting_profile_entry(name)
     if
         not mnav.is_hovering(delete_sid)
         and not mnav.is_hovering(reset_sid)
+        and not mnav.is_hovering(copy_sid)
         and not mnav.is_hovering(rename_sid)
         and mnav.get_clicked(sid)
         and not is_current_profile
@@ -162,7 +187,7 @@ function menu.main()
     cursor.v_split(math.min(menu_width, screen_width)) -- (2)
     cursor.pop() -- (2.1)
 
-    draw_by_cursor.rectangle(theme.settings_menu_bg_color)
+    draw_by_cursor.rectangle(bg_color)
 
     -- split between categoy bar and profile selection
     cursor.v_split(category_bar_width) -- (3)
@@ -202,10 +227,10 @@ function menu.main()
 
     scroll.finish(8, 12, 8, 28, 100)
 
-    ui.draw.set_shader(theme.settings_menu_fade_down_shader)
+    ui.draw.set_shader(fade_down_shader)
     cursor.change_anchor(0)
     cursor.height = 8
-    draw_by_cursor.rectangle(theme.settings_menu_right_shadow_color)
+    draw_by_cursor.rectangle(shadow40_color)
     ui.draw.set_shader()
 
     --#endregion
@@ -263,8 +288,11 @@ function menu.main()
         typing.draw_text_entry(24, "New profile name")
     end
     if typing.stopped_editing(create_state) then
-        if #create_state.text > 0 then
-            success, msg = settings.create_profile(create_state.text)
+        local new_text = create_state.text --[[@as string]]
+        -- trim leading and trailing whitespace
+        new_text = new_text:gsub("^%s*(.-)%s*$", "%1")
+        if #new_text > 0 then
+            success, msg = settings.create_profile(new_text)
             if not success then
                 set_error_message(msg)
             end
@@ -274,9 +302,9 @@ function menu.main()
 
     scroll.finish(8, 12, 4, 24, 100)
 
-    ui.draw.set_shader(theme.settings_menu_fade_down_shader)
+    ui.draw.set_shader(fade_down_shader)
     cursor.height = 8
-    draw_by_cursor.rectangle(theme.settings_menu_right_shadow_color)
+    draw_by_cursor.rectangle(shadow40_color)
     ui.draw.set_shader()
 
     --#endregion
