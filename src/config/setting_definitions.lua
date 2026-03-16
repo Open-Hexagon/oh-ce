@@ -116,6 +116,8 @@ add_setting("Gameplay", "background", true, { can_change_in_offical = false, gam
 add_setting("Gameplay", "invincible", false, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
 add_setting("Gameplay", "rotation", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
 add_setting("Gameplay", "messages", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting("Gameplay", "flash", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
+add_setting("Gameplay", "shaders", true, { can_change_in_offical = false, game_version = 21 })
 add_setting("Gameplay", "player_tilt_intensity", 1, {
     game_version = 21,
     min = 0,
@@ -125,8 +127,7 @@ add_setting("Gameplay", "player_tilt_intensity", 1, {
     tooltip = "How much the player arrow tilts while moving.",
 })
 add_setting("Gameplay", "swap_blinking_effect", true, { game_version = 21 })
-add_setting("Gameplay", "flash", true, { can_change_in_offical = false, game_version = { 192, 20, 21 } })
-add_setting("Gameplay", "shaders", true, { can_change_in_offical = false, game_version = 21 })
+add_setting("Gameplay", "show_swap_particles", true, { game_version = 21 })
 add_setting("Gameplay", "text_scale", 1, { game_version = 21, min = 0.1, max = 4, positions = 79, format = "%.2f" })
 add_setting("Gameplay", "show_player_trail", false, { game_version = 21 })
 add_setting("Gameplay", "player_trail_decay", 3, {
@@ -158,7 +159,6 @@ add_setting(
     true,
     { game_version = 21, dependencies = { show_player_trail = true } }
 )
-add_setting("Gameplay", "show_swap_particles", true, { game_version = 21 })
 
 --#endregion
 
@@ -182,6 +182,7 @@ add_setting("UI", "gui_scale", 1, {
         end
     end,
 })
+add_setting("UI", "input_display", true, { tooltip = "Display inputs on screen during gameplay." })
 add_setting("UI", "background_preview_mode", 1, {
     options = { "Minimal", "Full" },
     onchange = function(value)
@@ -196,14 +197,8 @@ add_setting("UI", "background_preview_mode", 1, {
         end
     end,
 })
-add_setting("UI", "background_preview_has_text", false, { dependencies = { background_preview = "full" } })
-add_setting("UI", "input_display", true, { tooltip = "Display inputs on screen during gameplay." })
-
---#endregion
-
---#region Audio settings
-
-add_setting("Audio", "background_preview_music_volume", 0, {
+add_setting("UI", "background_preview_has_text", false, { dependencies = { background_preview_mode = 2 } })
+add_setting("UI", "background_preview_music_volume", 0, {
     display_name = "BG preview music volume",
     min = 0,
     max = 1,
@@ -215,9 +210,9 @@ add_setting("Audio", "background_preview_music_volume", 0, {
     onchange = function(value)
         require("game_handler").set_volume(value)
     end,
-    dependencies = { background_preview = "full" },
+    dependencies = { background_preview_mode = 2 },
 })
-add_setting("Audio", "background_preview_sound_volume", 0, {
+add_setting("UI", "background_preview_sound_volume", 0, {
     display_name = "BG preview sound volume",
     min = 0,
     max = 1,
@@ -229,8 +224,12 @@ add_setting("Audio", "background_preview_sound_volume", 0, {
     onchange = function(value)
         require("game_handler").set_volume(nil, value)
     end,
-    dependencies = { background_preview = "full" },
+    dependencies = { background_preview_mode = 2 },
 })
+
+--#endregion
+
+--#region Audio settings
 
 add_setting("Audio", "sound_volume", 1, {
     game_version = { 192, 20, 21, 3 },

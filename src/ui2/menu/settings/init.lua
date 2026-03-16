@@ -20,6 +20,7 @@ local toggle = ui.element.toggle
 local slider = ui.element.slider
 local switch = ui.element.switch
 local profile_display_list = settings.profile_display_list
+local suppress = ui.suppress
 
 local bg_color = { 0.13, 0.15, 0.19, 1 }
 local shadow40_color = { 0, 0, 0, 0.4 }
@@ -120,8 +121,7 @@ function profile_dropdown.main()
     draw_by_cursor.rectangle(shadow40_color)
     ui.draw.set_shader()
     scroll.finish(8, 0)
-    cursor.top_to_screen()
-    cursor.bottom_to_screen()
+    cursor.v_fit_screen()
     draw_by_cursor.left_line(theme.white, 2, "inside")
     draw_by_cursor.right_line(theme.white, 2, "inside")
 end
@@ -157,7 +157,7 @@ local function refresh_visuals()
         local state = id[name]
         state.initialized = nil
         if type(property.default) == "boolean" then
-            state.on = settings_table[name]
+            state.on = settings.get(name)
         elseif property.options then
             state.position = settings_table[name]
         elseif type(property.default) == "number" then
@@ -212,6 +212,11 @@ local function draw_toggle(state, property)
             settings.set(property.name, state.on)
             if property.onchange then
                 property.onchange(state.value)
+            end
+            -- ! dumb hack to make the toggle switches show default values when official mode is on
+            -- ! only the toggle settings have this feature for now
+            if property.name == "official_mode" then
+                refresh_visuals()
             end
         end
     end
@@ -365,7 +370,24 @@ local function draw_switch(state, property)
     cursor.shift_down()
 end
 
+local function are_dependencies_satisfied(property)
+    if not property.dependencies then
+        return true
+    end
+    for name, required_value in pairs(property.dependencies) do
+        if settings_table[name] ~= required_value then
+            return false
+        end
+    end
+    return true
+end
+
 local function draw_setting(property)
+    local disable = not are_dependencies_satisfied(property)
+    if disable then
+        suppress.push_disable()
+    end
+
     local state = id[property.name]
 
     if type(property.default) == "boolean" then
@@ -385,6 +407,10 @@ local function draw_setting(property)
         mnav.make_sensor()
         tooltip("right", "<placeholder>", 20, "left")
         cursor.shift_down()
+    end
+
+    if disable then
+        suppress.pop_disable()
     end
 end
 
