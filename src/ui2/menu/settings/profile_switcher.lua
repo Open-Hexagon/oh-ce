@@ -14,6 +14,7 @@ local id = ui.new_id_table()
 local checkbox = ui.element.checkbox
 local typing = ui.control.typing
 local profile_display_list = settings.profile_display_list
+local set_error_message = require("ui2.menu.debug").set_error_message
 
 local bg_color, shadow40_color, shadow20_color, menu_width, category_bar_width, category_icon_size, fade_down_shader =
     ...
@@ -40,16 +41,6 @@ function menu.on_pop(release)
     slide_in_out:keyframe(0.1, -menu_width, ease.out_sine)
     slide_in_out:call(release)
     menu.fully_extended = false
-end
-
-local error_message
-local error_message_time = 0
-
-local function set_error_message(str)
-    local trimmed = string.match(str, ":%d+: (.*)")
-    str = trimmed or str
-    error_message = str
-    error_message_time = 5
 end
 
 local rename_state = {}
@@ -320,16 +311,6 @@ function menu.main()
     mnav.make_sensor()
     if mnav.get_clicked() then
         close()
-    end
-
-    if error_message_time > 0 then
-        cursor.reset()
-        cursor.change_anchor(0, 1)
-        local r = ui.draw.allocate_reservation(1)
-        draw_by_cursor.label(error_message, 12, "left", true)
-        ui.draw.next_takes_reservation(r)
-        draw_by_cursor.rectangle(theme.black, "fill")
-        error_message_time = error_message_time - love.timer.getDelta()
     end
 
     cursor.pop_translation() -- (1)

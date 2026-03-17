@@ -21,6 +21,7 @@ local slider = ui.element.slider
 local switch = ui.element.switch
 local profile_display_list = settings.profile_display_list
 local suppress = ui.suppress
+local set_error_message = require("ui2.menu.debug").set_error_message
 
 local bg_color = { 0.13, 0.15, 0.19, 1 }
 local shadow40_color = { 0, 0, 0, 0.4 }
@@ -48,16 +49,6 @@ local profile_switcher_menu = loadfile("src/ui2/menu/settings/profile_switcher.l
 
 local search_bar_height = 74
 local profile_dropdown_height = 26
-
-local error_message
-local error_message_time = 0
-
-local function set_error_message(str)
-    local trimmed = string.match(str, ":%d+: (.*)")
-    str = trimmed or str
-    error_message = str
-    error_message_time = 5
-end
 
 local profile_dropdown = {}
 local dropdown_scroll = {}
@@ -574,16 +565,6 @@ function menu.main()
     mnav.make_sensor()
     if mnav.get_clicked() then
         close()
-    end
-
-    if error_message_time > 0 then
-        cursor.reset()
-        cursor.change_anchor(0, 1)
-        local r = ui.draw.allocate_reservation(1)
-        draw_by_cursor.label(error_message, 12, "left", true)
-        ui.draw.next_takes_reservation(r)
-        draw_by_cursor.rectangle(theme.black, "fill")
-        error_message_time = error_message_time - love.timer.getDelta()
     end
 
     cursor.pop_translation() -- (1)
