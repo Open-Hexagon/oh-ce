@@ -72,15 +72,18 @@ local function draw_setting_profile_entry(name)
     end
     if currently_renaming == name then
         typing.make_text_entry(rename_state, rename_sid)
-        typing.draw_text_entry(24, "Rename profile")
-        if typing.stopped_editing(rename_state) then
-            local new_text = rename_state.text --[[@as string]]
-            -- trim leading and trailing whitespace
-            new_text = new_text:gsub("^%s*(.*)%s*$", "%1")
-            if #new_text > 0 and new_text ~= currently_renaming then
-                success, msg = settings.rename_profile(name, new_text)
-                if not success then
-                    set_error_message(msg)
+        typing.draw_text_entry(rename_state, 24, "Rename profile", theme.get_xterm_color(87))
+        local stop_method = typing.stopped_editing(rename_state)
+        if stop_method then
+            if stop_method ~= "escape" then
+                local new_text = rename_state.text --[[@as string]]
+                -- trim leading and trailing whitespace
+                new_text = new_text:gsub("^%s*(.*)%s*$", "%1")
+                if #new_text > 0 and new_text ~= currently_renaming then
+                    success, msg = settings.rename_profile(name, new_text)
+                    if not success then
+                        set_error_message(msg)
+                    end
                 end
             end
             typing.truncate(rename_state)
@@ -276,16 +279,19 @@ function menu.main()
     scroll.auto_scroll_region(not not mnav.get_clicked(create_profile_sid))
     typing.make_text_entry(create_state, create_profile_sid)
     if typing.is_editing(create_state) then
-        typing.draw_text_entry(24, "New profile name")
+        typing.draw_text_entry(create_state, 24, "New profile name", theme.get_xterm_color(87))
     end
-    if typing.stopped_editing(create_state) then
-        local new_text = create_state.text --[[@as string]]
-        -- trim leading and trailing whitespace
-        new_text = new_text:gsub("^%s*(.-)%s*$", "%1")
-        if #new_text > 0 then
-            success, msg = settings.create_profile(new_text)
-            if not success then
-                set_error_message(msg)
+    local stop_method = typing.stopped_editing(create_state)
+    if stop_method then
+        if stop_method ~= "escape" then
+            local new_text = create_state.text --[[@as string]]
+            -- trim leading and trailing whitespace
+            new_text = new_text:gsub("^%s*(.-)%s*$", "%1")
+            if #new_text > 0 then
+                success, msg = settings.create_profile(new_text)
+                if not success then
+                    set_error_message(msg)
+                end
             end
         end
         typing.truncate(create_state)
