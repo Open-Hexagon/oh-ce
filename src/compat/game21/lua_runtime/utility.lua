@@ -1,6 +1,6 @@
 local log = require("log")(...)
 local args = require("args")
-local input = require("input")
+local input = require("game_input.recorder")
 local level_status = require("compat.game21.level_status")
 local status = require("compat.game21.status")
 local player = require("compat.game21.player")

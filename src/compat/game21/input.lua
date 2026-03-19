@@ -1,5 +1,5 @@
 local settings = require("config").settings
-local game_input = require("input")
+local game_input = require("game_input.recorder")
 local lua_runtime = require("compat.game21.lua_runtime")
 local level_status = require("compat.game21.level_status")
 local status = require("compat.game21.status")

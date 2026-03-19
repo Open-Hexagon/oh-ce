@@ -1,5 +1,5 @@
 local args = require("args")
-local input = require("input")
+local input = require("game_input.recorder")
 local Replay = require("game_handler.replay")
 local pack_level_data = require("game_handler.data")
 local async = require("async")

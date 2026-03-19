@@ -1,4 +1,4 @@
-local input = require("input")
+local input = require("game_input.recorder")
 local key_repeat = {}
 local keys = { "ui_up", "ui_down", "ui_left", "ui_right", "ui_click", "ui_backspace", "ui_delete", "exit", "restart" }
 local modules = { "ui", "game_handler" }

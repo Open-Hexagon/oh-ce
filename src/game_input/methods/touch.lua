@@ -1,9 +1,5 @@
-local args = require("args")
-local controls
-if not args.headless then
-    -- TODO: remove
-    controls = require("ui.screens.game.controls")
-end
+-- TODO something might be needed here to handle headless mode
+
 local touch = {
     defaults = {
         right = { "right" },
@@ -18,10 +14,7 @@ function touch.is_down(side)
         local id = touches[i]
         local x, y = love.touch.getPosition(id)
         if (side == "left" and x <= half_width) or (side == "right" and x >= half_width) then
-            -- prevent move on ui button press
-            if not controls.is_in(x, y) then
-                return true
-            end
+            return true
         end
     end
     return false

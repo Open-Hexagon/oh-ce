@@ -1,11 +1,6 @@
-local schemes = require("input_schemes")
-local args = require("args")
+local game_input_methods = require("game_input.methods")
 local config = require("config").settings
-local buttons
-if not args.headless then
-    -- TODO: remove
-    buttons = require("ui.screens.game.controls")
-end
+
 -- wrapper for game inputs to automate replay recording
 local input = {
     ---@type Replay?
@@ -89,30 +84,14 @@ local mapping = {
 ---records changes if recording
 ---gets input state from replay if replaying
 ---@param input_name string
----@param add_ui_button boolean?
 ---@return boolean
-function input.get(input_name, add_ui_button)
+function input.get(input_name)
     input_name = mapping[input_name] or input_name
-    if add_ui_button == nil then
-        add_ui_button = input_name ~= "left" and input_name ~= "right"
-    end
-    if args.headless or not config.get("in-game_buttons") then
-        add_ui_button = false
-    end
 
     local inputs = config.get(input_name) or { {
         ids = { input_name },
         scheme = "keyboard",
     } }
-    local ui_button
-
-    if add_ui_button then
-        ui_button = buttons.get(input_name)
-        if not ui_button then
-            ui_button = buttons.add(input_name)
-        end
-        ui_button.updated = true
-    end
 
     local ret = false
     for i = 1, #inputs do
@@ -122,11 +101,8 @@ function input.get(input_name, add_ui_button)
             local state
             if replaying then
                 state = input_state[key] or false
-                if add_ui_button then
-                    ui_button.real_input_state = state
-                end
             else
-                state = schemes[scheme.scheme].is_down(scheme.ids[j])
+                state = game_input_methods[scheme.scheme].is_down(scheme.ids[j])
                 if recording then
                     if input.replay == nil then
                         error("attempted to record input without active replay")
@@ -139,10 +115,6 @@ function input.get(input_name, add_ui_button)
             end
             ret = ret or state
         end
-    end
-    if add_ui_button then
-        ret = ui_button.ui_pressing or ret
-        ui_button.real_input_state = ret
     end
     return ret
 end

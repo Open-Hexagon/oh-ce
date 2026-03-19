@@ -1,4 +1,4 @@
-local input_schemes = require("input_schemes")
+local game_input_methods = require("game_input.methods")
 local ohui = require("ohui")
 local ui_settings = ohui.settings
 local auto_gui_scale = require("ui2.auto_gui_scale")
@@ -53,7 +53,7 @@ end
 
 local function add_input(name, versions)
     local bindings = {}
-    for scheme_name, scheme in pairs(input_schemes) do
+    for scheme_name, scheme in pairs(game_input_methods) do
         if #(scheme.defaults[name] or {}) > 0 then
             bindings[#bindings + 1] = {
                 scheme = scheme_name,
