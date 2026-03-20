@@ -53,7 +53,7 @@ local settings_logger = logging.get_logger(modname .. ".settings")
 
 -- check for this folder's existence
 local SETTINGS_PROFILE_PATH = "settings/"
-if not love.filesystem.getInfo(SETTINGS_PROFILE_PATH) then
+if not love.filesystem.exists(SETTINGS_PROFILE_PATH) then
     if not love.filesystem.createDirectory(SETTINGS_PROFILE_PATH) then
         -- set this flag if we for some reason can't make the directory
         settings_logger:warning("Settings directory is unavailable. Expect errors.")
@@ -107,7 +107,7 @@ local function sync_sp_registry()
 
     -- delete any spurious registry entries
     for name, ident in pairs(sp_registry) do
-        if not love.filesystem.getInfo(to_settings_path(ident)) then
+        if not love.filesystem.exists(to_settings_path(ident)) then
             sp_registry[name] = nil
             spurious = spurious + 1
         end
@@ -245,7 +245,7 @@ local function get_random_identifier()
     end
     ident = buf:tostring()
     path = to_settings_path(ident)
-    if love.filesystem.getInfo(path) then
+    if love.filesystem.exists(path) then
         buf:reset()
         goto again
     end

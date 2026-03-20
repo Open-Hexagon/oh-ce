@@ -38,7 +38,7 @@ parser
     :argname({ "<192|20|21>", "<path>" })
 parser:flag("--extract-working-replays", "Extracts all replays from submitted scores that are working.")
 parser
-    :flag("-l --logging-level", "Logging level. One of the following: 'DEBUG', 'INFO', 'WARNING', 'ERROR'.")
+    :flag("--logging-level", "Logging level. One of the following: 'DEBUG', 'INFO', 'WARNING', 'ERROR'.")
     :default("WARNING")
     :args(1)
 parser:flag("--quiet", "don't print logs to stderr")

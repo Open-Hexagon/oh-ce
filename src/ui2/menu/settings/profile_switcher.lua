@@ -219,6 +219,8 @@ function menu.main()
     cursor.width = menu_width - category_bar_width
     cursor.clip(12, 8, 28, 0)
 
+    -- TODO nothing to display for now
+
     scroll.finish(8, 12, 8, 28, 100)
 
     ui.draw.set_shader(fade_down_shader)
