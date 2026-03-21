@@ -1,6 +1,6 @@
 local log = require("log")(...)
 local args = require("args")
-local input = require("game_input.recorder")
+local game_input = require("game_input")
 local level_status = require("compat.game21.level_status")
 local status = require("compat.game21.status")
 local player = require("compat.game21.player")
@@ -203,7 +203,7 @@ return function(public, game)
             lua_runtime.error("Could not find key with sfml keycode '" .. key_code .. "'!")
             return false
         end
-        return input.get(key)
+        return game_input.get(key)
     end
     env.u_haltTime = function(duration)
         status.pause_time(duration / 60)
@@ -225,7 +225,7 @@ return function(public, game)
         return player.set_player_angle(angle)
     end
     env.u_isMouseButtonPressed = function(button)
-        return input.get(button)
+        return game_input.get(button)
     end
     env.u_isFastSpinning = function()
         return status.fast_spin > 0

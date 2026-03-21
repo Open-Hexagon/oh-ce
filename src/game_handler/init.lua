@@ -1,5 +1,5 @@
 local args = require("args")
-local input = require("game_input.recorder")
+local game_input = require("game_input")
 local Replay = require("game_handler.replay")
 local pack_level_data = require("game_handler.data")
 local async = require("async")
@@ -128,12 +128,12 @@ game_handler.record_start = async(function(pack, level, level_settings, is_retry
     current_game.preview_mode = false
     current_game.death_callback = function()
         love.mouse.setVisible(true)
-        input.record_stop()
+        game_input.record_stop()
         if current_game.update_save_data ~= nil then
             current_game.update_save_data()
         end
         if current_game.persistent_data ~= nil then
-            input.replay.data.persistent_data = current_game.persistent_data
+            game_input.replay.data.persistent_data = current_game.persistent_data
             game_handler.profile.store_data(pack, current_game.persistent_data)
         end
         game_handler.save_score()
@@ -142,8 +142,8 @@ game_handler.record_start = async(function(pack, level, level_settings, is_retry
 
     first_play = not is_retry
 
-    input.replay = Replay:new()
-    input.replay:set_game_data(
+    game_input.replay = Replay:new()
+    game_input.replay:set_game_data(
         current_game_version,
         settings.get_all(current_game_version),
         first_play,
@@ -153,7 +153,7 @@ game_handler.record_start = async(function(pack, level, level_settings, is_retry
         level_settings
     )
     current_game.first_play = first_play
-    input.record_start()
+    game_input.record_start()
     async.await(current_game.start(pack, level, level_settings))
     start_time = love.timer.getTime()
     current_game.update(1 / current_game.tickrate)
@@ -185,7 +185,7 @@ game_handler.replay_start = async(function(file_or_replay_obj)
     end
     current_game.preview_mode = false
     current_game.persistent_data = replay.data.persistent_data
-    input.replay = replay
+    game_input.replay = replay
     first_play = replay.first_play
     current_game.first_play = first_play
     local old_config_values = {}
@@ -195,12 +195,12 @@ game_handler.replay_start = async(function(file_or_replay_obj)
         settings.set(name, value)
     end
     current_game.death_callback = function()
-        input.replay_stop()
+        game_input.replay_stop()
         for name, value in pairs(old_config_values) do
             settings.set(name, value)
         end
     end
-    input.replay_start()
+    game_input.replay_start()
     async.await(current_game.start(replay.pack_id, replay.level_id, replay.data.level_settings))
     if not args.headless then
         start_time = love.timer.getTime()
@@ -228,7 +228,7 @@ function game_handler.process_event(name, ...)
     if name == "resize" then
         game_handler.set_game_dimensions(love.graphics.getDimensions())
     end
-    if name == "customkeydown" and game_handler.is_running() and not input.is_replaying() then
+    if name == "customkeydown" and game_handler.is_running() and not game_input.is_replaying() then
         local key = ...
         if not current_game.preview_mode then
             if key == "exit" then
@@ -318,8 +318,8 @@ end
 
 ---save the score and replay of the current attempt (gets called automatically on death)
 function game_handler.save_score()
-    input.replay.score = current_game.get_score()
-    game_handler.profile.save_score(game_handler.get_timed_score(), input.replay)
+    game_input.replay.score = current_game.get_score()
+    game_handler.profile.save_score(game_handler.get_timed_score(), game_input.replay)
 end
 
 ---update the game if it's running
@@ -401,7 +401,7 @@ end
 ---check if a replay is fully replayed only in terms of inputs
 ---@return boolean
 function game_handler.is_replay_done()
-    return input.is_done_replaying
+    return game_input.is_done_replaying
 end
 
 ---get the current score of the game
@@ -451,7 +451,7 @@ end
 ---gets the current replay (nil if there is none)
 ---@return Replay|nil
 function game_handler.get_replay()
-    return input.replay
+    return game_input.replay
 end
 
 ---get all packs and relevant data for level selection

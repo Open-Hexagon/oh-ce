@@ -3,7 +3,7 @@ local sound = require("compat.sound")
 local utils = require("compat.game192.utils")
 local speed_data = require("compat.game20.speed_data")
 local settings = require("config").settings
-local input = require("game_input.recorder")
+local game_input = require("game_input")
 local status = require("compat.game20.status")
 local level_status = require("compat.game20.level_status")
 local vfs = require("compat.game192.virtual_filesystem")
@@ -157,7 +157,7 @@ function lua_runtime.init_env(game, public)
         io = vfs.io,
         math = {
             randomseed = function(seed)
-                math.randomseed(input.next_seed(seed))
+                math.randomseed(game_input.next_seed(seed))
             end,
         },
         tostring = tostring,
@@ -202,7 +202,7 @@ function lua_runtime.init_env(game, public)
             lua_runtime.error("Could not find key with sfml keycode '" .. key_code .. "'!")
             return false
         end
-        return input.get(key)
+        return game_input.get(key)
     end
     env.u_isFastSpinning = function()
         return status.fast_spin > 0

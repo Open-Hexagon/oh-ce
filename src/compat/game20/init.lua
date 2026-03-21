@@ -9,7 +9,7 @@ local timeline = require("compat.game20.timeline")
 local async = require("async")
 local music = require("compat.music")
 local settings = require("config").settings
-local input = require("game_input.recorder")
+local game_input = require("game_input")
 local status = require("compat.game20.status")
 local level = require("compat.game20.level")
 local level_status = require("compat.game20.level_status")
@@ -51,7 +51,7 @@ public.start = async(function(pack_id, level_id, level_options)
     level_options.difficulty_mult = level_options.difficulty_mult or 1
     game.difficulty_mult = level_options.difficulty_mult
     local seed = math.floor(love.timer.getTime() * 1000000000)
-    math.randomseed(input.next_seed(seed))
+    math.randomseed(game_input.next_seed(seed))
 
     local key = "20_" .. pack_id
     if not assets.mirror[key] then
@@ -177,11 +177,11 @@ end
 function public.update(frametime)
     game.real_time = game.real_time + frametime
     frametime = frametime * 60
-    input.update()
-    local focus = input.get("focus")
-    local swap = input.get("swap")
-    local cw = input.get("right")
-    local ccw = input.get("left")
+    game_input.update()
+    local focus = game_input.get("focus")
+    local swap = game_input.get("swap")
+    local cw = game_input.get("right")
+    local ccw = game_input.get("left")
     if cw and not ccw then
         move = 1
         last_move = 1

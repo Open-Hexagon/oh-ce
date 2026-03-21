@@ -9,7 +9,7 @@ local events = require("compat.game192.events")
 local walls = require("compat.game192.walls")
 local vfs = require("compat.game192.virtual_filesystem")
 local config = require("config").settings
-local input = require("game_input.recorder")
+local game_input = require("game_input")
 local lua_runtime = {
     env = {},
     reset_timings = false,
@@ -189,7 +189,7 @@ function lua_runtime.init_env(game, public)
         -- allowing manual random seed setting, the randomseed calls will be recorded in the replay in order (with their seed)
         math = {
             randomseed = function(seed)
-                math.randomseed(input.next_seed(seed))
+                math.randomseed(game_input.next_seed(seed))
             end,
         },
     }
@@ -319,9 +319,9 @@ function lua_runtime.init_env(game, public)
             if not args.headless then
                 love.event.pump()
             end
-            input.update()
+            game_input.update()
         end
-        return input.get(key)
+        return game_input.get(key)
     end
     env.isFastSpinning = function()
         return status.fast_spin > 0

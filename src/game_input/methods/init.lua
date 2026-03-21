@@ -1,4 +1,4 @@
--- Input methods used only the game.
+-- Input methods used only in game.
 -- The ui has it's own hardcoded bindings
 -- ? Whether default ui bindings will become editable is unknown.
 -- ? Though other than a hotkey/keyboard shortcut system, probably not. 

@@ -9,7 +9,7 @@ local mouse = {
 }
 
 function mouse.is_down(id)
-    -- touch pretends to be a mouse sometimes, so when touch is active we don't want this input scheme to interfere
+    -- touch pretends to be a mouse sometimes, so when touch is active we don't want this input method to interfere
     -- also don't misinterpret if ui button is pressed
     if #love.touch.getTouches() > 0 then
         return false

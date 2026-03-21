@@ -52,16 +52,17 @@ local function add_setting(category, name, default, options)
 end
 
 local function add_input(name, versions)
-    local bindings = {}
-    for scheme_name, scheme in pairs(game_input_methods) do
-        if #(scheme.defaults[name] or {}) > 0 then
-            bindings[#bindings + 1] = {
-                scheme = scheme_name,
-                ids = scheme.defaults[name],
-            }
+    local default_bindings = {}
+    for method_name, method in pairs(game_input_methods) do
+        local defaults = method.defaults[name]
+        if defaults and #defaults > 0 then
+            table.insert(default_bindings, {
+                method = method_name,
+                bindings = defaults,
+            })
         end
     end
-    add_setting("Input", name, bindings, {
+    add_setting("Input", name, default_bindings, {
         game_version = versions,
     })
 end

@@ -18,7 +18,7 @@ local walls = require("compat.game192.walls")
 local vfs = require("compat.game192.virtual_filesystem")
 local utils = require("compat.game192.utils")
 local config = require("config").settings
-local input = require("game_input.recorder")
+local game_input = require("game_input")
 local public = {
     running = false,
     first_play = true,
@@ -135,7 +135,7 @@ public.start = async(function(pack_folder, level_id, level_options)
     level_options.difficulty_mult = level_options.difficulty_mult or 1
     local difficulty_mult = level_options.difficulty_mult
     local seed = math.floor(love.timer.getTime() * 1000000000)
-    math.randomseed(input.next_seed(seed))
+    math.randomseed(game_input.next_seed(seed))
 
     game.real_time = 0
     last_real_time = 0
@@ -232,7 +232,7 @@ function public.update(frametime)
     if frametime > 4 then
         frametime = 4
     end
-    input.update()
+    game_input.update()
     if status.flash_effect > 0 then
         status.flash_effect = status.flash_effect - 3 * frametime
     end
@@ -249,9 +249,9 @@ function public.update(frametime)
         end
     end
     if not status.has_died then
-        local focus = input.get("focus")
-        local cw = input.get("right")
-        local ccw = input.get("left")
+        local focus = game_input.get("focus")
+        local cw = game_input.get("right")
+        local ccw = game_input.get("left")
         local move
         if cw and not ccw then
             move = 1
