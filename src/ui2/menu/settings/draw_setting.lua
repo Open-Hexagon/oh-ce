@@ -1,33 +1,23 @@
 local ui = require("ohui")
 local theme = ui.theme
 local cursor = ui.cursor
+local text = ui.text
+local layer = ui.layer
+local suppress = ui.suppress
 local draw = ui.draw
 local draw_by_cursor = draw.by_cursor
-local draw_by_id = draw.by_id
-local icon_button = ui.element.icon_button
 local mnav = ui.control.mouse_navigation
 local mb = mnav.buttons
 local smode = mnav.sensor_mode
-local signal = require("ui2.anim.signal")
-local ease = require("ui2.anim.ease")
+local icon_button = ui.element.icon_button
 local tooltip = ui.decorator.tooltip
-local settings = require("config").settings
-local categories = settings.categories
-local area_element = ui.area_element
-local scroll = area_element.scroll
-local blank_background = area_element.blank_background
 local toggle = ui.element.toggle
 local slider = ui.element.slider
 local switch = ui.element.switch
-local profile_display_list = settings.profile_display_list
-local suppress = ui.suppress
+
 local set_error_message = require("ui2.menu.debug").set_error_message
-local text = ui.text
-local replace_icon_sequences = text.replace_icon_sequences
-local search = text.search
-local ansi = text.ansi
-local typing = ui.control.typing
-local layer = ui.layer
+local settings = require("config").settings
+local ease = require("ui2.anim.ease")
 
 local settings_table = settings.get_all()
 
@@ -327,7 +317,7 @@ local function draw_switch(state, property)
         end
 
         cursor.change_anchor(1, 0.5)
-        cursor.width = 120 * #property.options
+        cursor.width = (property.switch_unit_width or 120) * #property.options
         local old_position = state.position
         switch(state, sid, unpack(property.options))
 

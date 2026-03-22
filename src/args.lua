@@ -43,7 +43,7 @@ parser
     :args(1)
 parser:flag("--quiet", "don't print logs to stderr")
 
-parser:option("--ui-scale", "starting ui scale", 1, tonumber, 1)
+parser:option("--ui-scale", "starting ui scale", nil, tonumber, 1)
 parser:flag("--overlay-masks", "(ui) overlay mask elements")
 parser:flag("--overlay-mouse-sensors", "(ui) overlay mouse sensor elements")
 parser:flag("--overlay-scroll", "(ui) overlay scrolling elements")

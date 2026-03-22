@@ -87,9 +87,9 @@ add_setting("Gameplay", "game_resolution_scale", 1, {
     max = 10,
     positions = 10,
     show_positions = true,
-    onchange = function()
-        require("game_handler").process_event("resize", love.graphics.getDimensions())
-    end,
+    -- onchange = function()
+    --     require("game_handler").process_event("resize", love.graphics.getDimensions())
+    -- end,
 })
 
 add_setting("Gameplay", "official_mode", true, {
@@ -189,17 +189,17 @@ add_setting("UI", "gui_scale", 1, {
 add_setting("UI", "input_display", true, { tooltip = "Display inputs on screen during gameplay." })
 add_setting("UI", "background_preview_mode", 1, {
     options = { "Minimal", "Full" },
-    onchange = function(value)
-        if value == "full" then
-            -- TODO: remove
-            -- require("ui.screens.levelselect.level").resume_preview()
-            -- require("ui.screens.levelselect.level").current_preview_active = false
-        else
-            -- TODO: remove
-            -- require("game_handler").stop()
-            -- require("ui.screens.levelselect.level").current_preview_active = true
-        end
-    end,
+    -- onchange = function(value)
+    --     if value == "full" then
+    --         -- TODO: remove
+    --         require("ui.screens.levelselect.level").resume_preview()
+    --         require("ui.screens.levelselect.level").current_preview_active = false
+    --     else
+    --         -- TODO: remove
+    --         require("game_handler").stop()
+    --         require("ui.screens.levelselect.level").current_preview_active = true
+    --     end
+    -- end,
 })
 add_setting("UI", "background_preview_has_text", false, { dependencies = { background_preview_mode = 2 } })
 add_setting("UI", "background_preview_music_volume", 0, {
@@ -211,10 +211,10 @@ add_setting("UI", "background_preview_music_volume", 0, {
     format = function(n)
         return tostring(n * 100) .. "%"
     end,
-    onchange = function(value)
-        require("game_handler").set_volume(value)
-    end,
     dependencies = { background_preview_mode = 2 },
+    -- onchange = function(value)
+    --     require("game_handler").set_volume(value)
+    -- end,
 })
 add_setting("UI", "background_preview_sound_volume", 0, {
     display_name = "BG preview sound volume",
@@ -225,10 +225,10 @@ add_setting("UI", "background_preview_sound_volume", 0, {
     format = function(n)
         return tostring(n * 100) .. "%"
     end,
-    onchange = function(value)
-        require("game_handler").set_volume(nil, value)
-    end,
     dependencies = { background_preview_mode = 2 },
+    -- onchange = function(value)
+    --     require("game_handler").set_volume(nil, value)
+    -- end,
 })
 
 --#endregion
@@ -268,9 +268,9 @@ add_setting("Audio", "music_speed_mult", 1, {
     max = 1.3,
     positions = 13,
     format = "%.2fx",
-    onchange = function()
-        require("compat.game21").refresh_music_pitch()
-    end,
+    -- onchange = function()
+    --     require("compat.game21").refresh_music_pitch()
+    -- end,
 })
 add_setting("Audio", "play_swap_sound", true, { game_version = 21 })
 
@@ -298,6 +298,29 @@ add_setting("Display", "fullscreen", 3, {
         if love.window and love.window.isOpen() then
             love.window.setFullscreen(value ~= 3, value == 2 and "desktop" or "exclusive")
         end
+    end,
+})
+add_setting("Display", "vsync", false, {
+    display_name = "VSync",
+    tooltip = "Vertical synchronization. Turn on only if you are experiencing screen tearing.",
+    onchange = function(value)
+        local w, h, mode = love.window.getMode()
+        ---@diagnostic disable: assign-type-mismatch, param-type-mismatch
+        mode.vsync = value and 1 or 0
+        love.window.setMode(w, h, mode)
+        ---@diagnostic enable
+    end,
+})
+add_setting("Display", "msaa", 3, {
+    display_name = "MSAA",
+    tooltip = "Multisample Anti-Aliasing",
+    switch_unit_width = 60,
+    options = { "None", "2x", "4x", "8x" },
+    onchange = function(value)
+        local w, h, mode = love.window.getMode()
+        mode.msaa = 2 ^ (value - 1)
+        ---@diagnostic disable-next-line: param-type-mismatch
+        love.window.setMode(w, h, mode)
     end,
 })
 

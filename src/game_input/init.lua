@@ -14,7 +14,7 @@ local mode = "idle"
 
 ---Only used for recording and replaying.
 ---For recording, this table is used to help record only *changes* to the input state.
----For replaying, previously saved inputs area read from here.
+---For replaying, previously saved inputs are read from here.
 local input_state = {}
 
 local time = 0

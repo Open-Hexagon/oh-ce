@@ -579,6 +579,7 @@ end
 
 ---Open the config file and initialize profiles.
 ---If files are damaged, will repair them.
+---All onchange functions are run once.
 do
     local global_load_success, success, msg, sp_name, gp_name
 
@@ -633,6 +634,12 @@ do
         if not success then
             config_logger:info("couldn't restore profile: ", msg)
             set_defaults(current_settings)
+        end
+    end
+
+    for name, prop_def in pairs(properties) do
+        if prop_def.onchange then
+            prop_def.onchange(current_settings[name])
         end
     end
 

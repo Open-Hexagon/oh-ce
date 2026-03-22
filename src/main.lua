@@ -149,7 +149,7 @@ function love.run()
         end
     end
 
-    local config = require("config")
+    local config = require("config") -- this initializes profiles
     local game_handler = require("game_handler")
 
     if args.server and args.render then
@@ -315,11 +315,13 @@ function love.run()
 
     do
         local settings = config.settings
-        local ohui = require("ohui")
         local ui2 = require("ui2")
-
+        local ohui = require("ohui")
         local ui_settings = ohui.settings
-        ui_settings.scale = args.ui_scale
+
+        if args.ui_scale then
+            ui_settings.scale = args.ui_scale
+        end
         ui_settings.overlay_grid = args.grid
         ui_settings.overlay_masks = args.overlay_masks
         ui_settings.overlay_mouse_sensors = args.overlay_mouse_sensors

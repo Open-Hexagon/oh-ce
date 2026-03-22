@@ -17,9 +17,8 @@ function love.conf(t)
         t.window.minheight = 360
         t.window.usedpiscale = false
 
-        -- TODO: make configurable
-        t.window.vsync = 0
-        t.window.msaa = 4
+        t.window.vsync = 0 -- will get overwritten by config on init
+        t.window.msaa = 4 -- will get overwritten by config on init
 
         t.console = true -- windows only
 
