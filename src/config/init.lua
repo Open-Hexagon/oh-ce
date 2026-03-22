@@ -79,7 +79,7 @@ loadfile("src/config/setting_definitions.lua")(categories, properties)
 
 -- current profile setting values
 local current_settings = {}
-local dirty = false
+local cs_dirty = false
 
 -- ! User generated filenames are inherently unsafe.
 
@@ -174,8 +174,22 @@ end
 ---@param value any
 function settings.set(name, value)
     current_settings[name] = value
-    dirty = true
+    cs_dirty = true
     settings_logger:debug("set '", name, "' to '", value, "'")
+end
+
+function settings.reset_setting(name)
+    local prop_def = properties[name]
+    if prop_def.default_serialized then
+        current_settings[name] = buffer.decode(prop_def.default_serialized)
+    else
+        current_settings[name] = prop_def.default
+    end
+    cs_dirty = true
+end
+
+function settings.set_dirty_flag()
+    cs_dirty = true
 end
 
 ---Gets a setting (returns the default for settings that cannot be changed in official mode if official mode is on).
@@ -233,6 +247,22 @@ end
 
 --#endregion
 
+---Puts all default settings into a table.
+---@param what table
+local function set_defaults(what)
+    for name, prop_def in pairs(properties) do
+        if prop_def.default_serialized then
+            what[name] = buffer.decode(prop_def.default_serialized)
+        else
+            what[name] = prop_def.default
+        end
+    end
+end
+
+--#region profile management
+-- all of these functions may throw errors for various reasons.
+-- these functions only operate on the filesystem, they don't care about what's going on in the current_settings table.
+
 local RANDSTR = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 local RANDLEN = 8
 local function get_random_identifier()
@@ -251,17 +281,6 @@ local function get_random_identifier()
     end
     return ident
 end
-
----Puts all default settings into a table.
----@param what table
-local function set_defaults(what)
-    for name, values in pairs(properties) do
-        what[name] = values.default
-    end
-end
-
---#region profile management
--- all of these functions may throw errors for various reasons
 
 ---Loads the config from a json file. Might throw an error.
 ---@param path string
@@ -408,7 +427,7 @@ end
 ---Saves the currently opened profile if it's dirty.
 ---Clears the dirty flag.
 local function save_current_profile()
-    if not dirty then
+    if not cs_dirty then
         return
     end
     local name = global_settings.settings_profile
@@ -416,7 +435,7 @@ local function save_current_profile()
     assert(ident, "global_settings.settings_profile has an invalid value")
     ident = try_save_settings_to_json(ident, current_settings)
     sp_registry[name] = ident
-    dirty = false
+    cs_dirty = false
     settings_logger:info("saved settings profile '", name, "' to '", to_settings_path(ident), "'")
 end
 
@@ -433,6 +452,9 @@ local function open_profile(name)
 end
 
 --#endregion
+
+--#region user-facing profile management
+-- the functions must handle all errors
 
 ---Creates a new profile. Settings all start at defaults.
 ---@param name string
@@ -505,7 +527,7 @@ end
 function settings.reset_profile(name)
     if name == global_settings.settings_profile then
         set_defaults(current_settings)
-        dirty = true
+        cs_dirty = true
         return true
     else
         local success, msg = pcall(reset_profile, name)
@@ -537,6 +559,8 @@ function settings.get_current_profile()
 end
 
 --#endregion
+
+--#endregion SETTINGS PROFILES
 
 local function try_global_save()
     local success, msg = pcall(global_save)

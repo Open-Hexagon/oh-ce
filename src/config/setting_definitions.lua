@@ -2,6 +2,7 @@ local game_input_methods = require("game_input.methods")
 local ohui = require("ohui")
 local ui_settings = ohui.settings
 local auto_gui_scale = require("ui2.auto_gui_scale")
+local buffer = require("string.buffer")
 
 local categories, properties = ...
 
@@ -19,7 +20,7 @@ end
 ---add a setting to the config
 ---@param category string setting category
 ---@param name string internal setting name
----@param default any default value
+---@param default number|string|boolean|table default value
 ---@param options table?
 local function add_setting(category, name, default, options)
     if not categories[category] then
@@ -42,6 +43,11 @@ local function add_setting(category, name, default, options)
 
     property.name = name
     property.default = default
+    if type(default) == "table" then
+        -- if the default is a table, we encode it so it can be quickly deep copied if the default setting needs to be set.
+        -- we don't want to reference the actual default table or else any edits to it will change the actual default value.
+        property.default_serialized = buffer.encode(default)
+    end
     property.category = category
     if not property.display_name then
         property.display_name = name:gsub("_", " "):gsub("^%l", string.upper)

@@ -367,7 +367,7 @@ function love.run()
             love.timer.step()
 
             -- process events
-            exit_code = event_loop(game_handler.process_event, ohui.push_event, ui2.process_event)
+            exit_code = event_loop(game_handler.process_event, ui2.process_event)
 
             -- clean up and exit
             if exit_code then

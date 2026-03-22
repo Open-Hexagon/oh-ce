@@ -6,6 +6,7 @@ local draw_by_cursor = draw.by_cursor
 local draw_by_id = draw.by_id
 local icon_button = ui.element.icon_button
 local mnav = ui.control.mouse_navigation
+local mb = mnav.buttons
 local smode = mnav.sensor_mode
 local signal = require("ui2.anim.signal")
 local ease = require("ui2.anim.ease")
@@ -22,7 +23,12 @@ local switch = ui.element.switch
 local profile_display_list = settings.profile_display_list
 local suppress = ui.suppress
 local set_error_message = require("ui2.menu.debug").set_error_message
+local replace_icon_sequences = ui.text.replace_icon_sequences
+local search = ui.text.search
+local ansi = ui.text.ansi
+local typing = ui.control.typing
 
+local resetting_bar_color = { 0.6, 0, 0, 1 }
 local bg_color = { 0.13, 0.15, 0.19, 1 }
 local shadow40_color = { 0, 0, 0, 0.4 }
 local shadow20_color = { 0, 0, 0, 0.2 }
@@ -47,7 +53,7 @@ local profile_switcher_menu = loadfile("src/ui2/menu/settings/profile_switcher.l
     fade_down_shader
 )
 
-local search_bar_height = 74
+local search_bar_height = 64
 local profile_dropdown_height = 26
 
 local profile_dropdown = {}
@@ -111,13 +117,18 @@ function profile_dropdown.main()
     ui.draw.set_shader(fade_down_shader)
     draw_by_cursor.rectangle(shadow40_color)
     ui.draw.set_shader()
-    scroll.finish(8, 0)
+    scroll.finish(8, 0, 0, 0, 0)
     cursor.v_fit_screen()
     draw_by_cursor.left_line(theme.white, 2, "inside")
     draw_by_cursor.right_line(theme.white, 2, "inside")
 end
 
 local menu = {}
+local search_state = { text = "" }
+
+local function is_searching()
+    return #search_state.text > 0
+end
 
 local category_icons = {
     Gameplay = "hexagon",
@@ -143,27 +154,33 @@ local function close()
 end
 
 local settings_table = settings.get_all()
-local function refresh_visuals()
-    for name, property in pairs(settings.properties) do
-        local state = id[name]
-        state.initialized = nil
-        if type(property.default) == "boolean" then
-            state.on = settings.get(name)
-        elseif property.options then
-            state.position = settings_table[name]
-        elseif type(property.default) == "number" then
-            state.value = settings_table[name]
-        end
+
+local function refresh_visuals(name)
+    local state = id[name]
+    local property = settings.properties[name]
+    state.initialized = nil
+    if type(property.default) == "boolean" then
+        state.on = settings.get(name)
+    elseif property.options then
+        state.position = settings_table[name]
+    elseif type(property.default) == "number" then
+        state.value = settings_table[name]
+    end
+end
+
+local function refresh_all_visuals()
+    for name, _ in pairs(settings.properties) do
+        refresh_visuals(name)
     end
 end
 
 function menu.on_push()
     slide_in_out:keyframe(0.1, 0, ease.out_sine)
-    refresh_visuals()
+    refresh_all_visuals()
 end
 
 function menu.on_reveal()
-    refresh_visuals()
+    refresh_all_visuals()
 end
 
 function menu.on_pop(release)
@@ -171,15 +188,51 @@ function menu.on_pop(release)
     slide_in_out:call(release)
 end
 
+-- TODO input settings
+
+-- TODO if search is on...
+-- sort by score
+-- hide settings with unsatisfied dependencies
+-- hide and disable categories
+
 local function draw_toggle(state, property)
+    local is_resetting = false
     local sid = mnav.declare_sensor_id()
     cursor.height = 32
     cursor.push()
     do
+        if mnav.get_holding(sid) == mb.left then
+            state._reset_timer = state._reset_timer + love.timer.getDelta() * 2
+            is_resetting = state._reset_timer < 1 and state._reset_timer > 0
+            if state._reset_timer > 1 then
+                state._reset_timer = 1
+                settings.reset_setting(property.name)
+                if property.name == "official_mode" then
+                    -- ! see other comment below
+                    refresh_all_visuals()
+                else
+                    refresh_visuals(property.name)
+                end
+                if property.onchange then
+                    property.onchange(state.value)
+                end
+                mnav.soft_release()
+            end
+        else
+            state._reset_timer = -1
+        end
+
         cursor.auto_reshape = "no"
-        cursor.auto_area_expansion = "cursor"
+        if is_resetting then
+            local w = cursor.width
+            cursor.width = w * ease.out_quad(state._reset_timer)
+            draw_by_cursor.rectangle(resetting_bar_color)
+            cursor.width = w
+        end
+
+        cursor.change_anchor(1, 0.5)
+        toggle(state, sid)
         cursor.change_anchor(0, 0.5)
-        cursor.clip_left(16)
 
         draw_by_cursor.label(
             property.display_name,
@@ -189,26 +242,38 @@ local function draw_toggle(state, property)
             state.on and theme.accent_color or theme.text_color
         )
 
-        cursor.change_anchor(1, 0.5)
-        toggle(state, sid)
-
         if mnav.is_hovering(sid) then
             draw_by_cursor.top_line(theme.accent_color, 2, "center", -2)
             draw_by_cursor.bottom_line(theme.accent_color, 2, "center", -2)
         end
+
         if property.tooltip then
             tooltip("right", property.tooltip, 20, "left", nil, nil, sid)
         end
-        if mnav.get_clicked(sid) then
+
+        if mnav.get_clicked(sid) == mb.left then
             settings.set(property.name, state.on)
             if property.onchange then
-                property.onchange(state.value)
+                property.onchange(state.on)
             end
             -- ! dumb hack to make the toggle switches show default values when official mode is on
             -- ! only the toggle settings have this feature for now
             if property.name == "official_mode" then
-                refresh_visuals()
+                refresh_all_visuals()
             end
+        end
+
+        -- draw the is resetting text
+        if is_resetting then
+            local r = draw.allocate_reservation(2)
+            cursor.change_anchor(0.5)
+            cursor.auto_reshape = "both"
+            draw_by_cursor.label("Resetting...", 16, "center", false)
+            cursor.outset(2)
+            draw.next_takes_reservation(r)
+            draw_by_cursor.rectangle(bg_color)
+            draw.next_takes_reservation(r)
+            draw_by_cursor.rectangle(theme.red, "line", 2)
         end
     end
     cursor.peek()
@@ -221,6 +286,7 @@ end
 local HOLD_ACTIVATE_TIME = 0.2
 local HOLD_REPEAT_PERIOD = 0.008
 local function draw_slider(state, property)
+    local is_resetting = false
     local sid = mnav.declare_sensor_id()
     local sid_plus, sid_minus
     local slider_sid = mnav.declare_sensor_id()
@@ -228,10 +294,31 @@ local function draw_slider(state, property)
     cursor.height = 32
     cursor.push()
     do
+        if mnav.get_holding(sid) == mb.left then
+            state._reset_timer = state._reset_timer + love.timer.getDelta() * 2
+            is_resetting = state._reset_timer < 1 and state._reset_timer > 0
+            if state._reset_timer > 1 then
+                state._reset_timer = 1
+                settings.reset_setting(property.name)
+                refresh_visuals(property.name)
+                if property.onchange then
+                    property.onchange(state.value)
+                end
+                mnav.soft_release()
+            end
+        else
+            state._reset_timer = -1
+        end
+
         cursor.auto_reshape = "no"
-        cursor.auto_area_expansion = "cursor"
+        if is_resetting then
+            local w = cursor.width
+            cursor.width = w * ease.out_quad(state._reset_timer)
+            draw_by_cursor.rectangle(resetting_bar_color)
+            cursor.width = w
+        end
+
         cursor.change_anchor(0, 0.5)
-        cursor.clip_left(16)
         draw_by_cursor.label(property.display_name, 24, "left", false)
 
         if mnav.is_hovering(sid) or mnav.get_dragging(slider_sid) then
@@ -256,23 +343,23 @@ local function draw_slider(state, property)
             cursor.change_anchor(1, 0.5)
             cursor.shift_left(10)
 
-            if mnav.get_holding(sid_plus) then
+            if mnav.get_holding(sid_plus) == mb.left then
                 property.inc_dec_buttons = property.inc_dec_buttons + love.timer.getDelta()
                 while property.inc_dec_buttons > HOLD_ACTIVATE_TIME do
                     state.position = state.position + 1
                     property.inc_dec_buttons = property.inc_dec_buttons - HOLD_REPEAT_PERIOD
                 end
-            elseif mnav.get_holding(sid_minus) then
+            elseif mnav.get_holding(sid_minus) == mb.left then
                 property.inc_dec_buttons = property.inc_dec_buttons + love.timer.getDelta()
                 while property.inc_dec_buttons > HOLD_ACTIVATE_TIME do
                     state.position = state.position - 1
                     property.inc_dec_buttons = property.inc_dec_buttons - HOLD_REPEAT_PERIOD
                 end
             else
-                if mnav.get_clicked(sid_plus) then
+                if mnav.get_clicked(sid_plus) == mb.left then
                     state.position = state.position + 1
                     has_incremented = true
-                elseif mnav.get_clicked(sid_minus) then
+                elseif mnav.get_clicked(sid_minus) == mb.left then
                     state.position = state.position - 1
                     has_incremented = true
                 end
@@ -302,7 +389,7 @@ local function draw_slider(state, property)
             display_value = state.value
         end
 
-        if has_incremented or mnav.get_stopped_dragging(slider_sid) or mnav.get_clicked(slider_sid) then
+        if has_incremented or mnav.get_stopped_dragging(slider_sid) or mnav.get_clicked(slider_sid) == mb.left then
             settings.set(property.name, state.value)
             if property.onchange then
                 property.onchange(state.value)
@@ -316,6 +403,20 @@ local function draw_slider(state, property)
         else
             draw_by_cursor.label(tostring(display_value), 20, "right", false)
         end
+
+        -- draw the is resetting text
+        if is_resetting then
+            cursor.peek()
+            local r = draw.allocate_reservation(2)
+            cursor.change_anchor(0.5)
+            cursor.auto_reshape = "both"
+            draw_by_cursor.label("Resetting...", 16, "center", false)
+            cursor.outset(2)
+            draw.next_takes_reservation(r)
+            draw_by_cursor.rectangle(bg_color)
+            draw.next_takes_reservation(r)
+            draw_by_cursor.rectangle(theme.red, "line", 2)
+        end
     end
     cursor.peek()
     cursor.h_stretch(100)
@@ -325,14 +426,36 @@ local function draw_slider(state, property)
 end
 
 local function draw_switch(state, property)
+    local is_resetting = false
     local sid = mnav.declare_sensor_id()
     cursor.height = 32
     cursor.push()
     do
+        if mnav.get_holding(sid) == mb.left then
+            state._reset_timer = state._reset_timer + love.timer.getDelta() * 2
+            is_resetting = state._reset_timer < 1 and state._reset_timer > 0
+            if state._reset_timer > 1 then
+                state._reset_timer = 1
+                settings.reset_setting(property.name)
+                refresh_visuals(property.name)
+                if property.onchange then
+                    property.onchange(state.position)
+                end
+                mnav.soft_release()
+            end
+        else
+            state._reset_timer = -1
+        end
+
         cursor.auto_reshape = "no"
-        cursor.auto_area_expansion = "cursor"
+        if is_resetting then
+            local w = cursor.width
+            cursor.width = w * ease.out_quad(state._reset_timer)
+            draw_by_cursor.rectangle(resetting_bar_color)
+            cursor.width = w
+        end
+
         cursor.change_anchor(0, 0.5)
-        cursor.clip_left(16)
         draw_by_cursor.label(property.display_name, 24, "left", false)
         if mnav.is_hovering(sid) then
             draw_by_cursor.top_line(theme.accent_color, 2, "center", -2)
@@ -353,12 +476,70 @@ local function draw_switch(state, property)
                 property.onchange(state.position)
             end
         end
+
+        -- draw the is resetting text
+        if is_resetting then
+            cursor.peek()
+            local r = draw.allocate_reservation(2)
+            cursor.change_anchor(0.5)
+            cursor.auto_reshape = "both"
+            draw_by_cursor.label("Resetting...", 16, "center", false)
+            cursor.outset(2)
+            draw.next_takes_reservation(r)
+            draw_by_cursor.rectangle(bg_color)
+            draw.next_takes_reservation(r)
+            draw_by_cursor.rectangle(theme.red, "line", 2)
+        end
     end
     cursor.peek()
     cursor.h_stretch(100)
     mnav.make_sensor(sid)
     cursor.pop()
     cursor.shift_down()
+end
+
+local function draw_input_editor(state, property)
+    local res_id, sid, remove_input_sid, add_input_sid, add_input_pid, left_limit, right_limit, text_height
+    sid = mnav.declare_sensor_id()
+    cursor.height = 32
+    cursor.start_area()
+    do
+        cursor.auto_reshape = "width"
+        cursor.change_anchor(0, 0.5)
+        cursor.push()
+
+        cursor.change_anchor(1, 0.5)
+        icon_button(24, "plus-square")
+        tooltip("right", "Add input", 16, "left", nil, nil, add_input_sid)
+
+        right_limit = cursor.get_left_edge()
+        cursor.peek()
+
+        draw_by_cursor.label(property.display_name, 24, "left", false)
+        left_limit = cursor.get_left_edge()
+        cursor.shift_right(10)
+
+        local methods = settings.get(property.name)
+        for i = 1, #methods do
+            local method_name = methods[i].method
+            local bindings = methods[i].bindings
+            for j = 1, #bindings do
+            end
+        end
+
+        cursor.pop()
+    end
+    cursor.finish_area()
+    cursor.push()
+    if mnav.is_hovering(sid) then
+        draw_by_cursor.top_line(theme.accent_color, 2, "center", -2)
+        draw_by_cursor.bottom_line(theme.accent_color, 2, "center", -2)
+    end
+    cursor.h_stretch(100)
+    mnav.make_sensor(sid)
+    cursor.pop()
+    cursor.shift_down()
+    cursor.change_anchor(0, 0) -- resets for next entry
 end
 
 local function are_dependencies_satisfied(property)
@@ -393,6 +574,8 @@ local function draw_setting(property)
         else
             return
         end
+    elseif property.category == "Input" then
+        draw_input_editor(state, property)
     else
         draw_by_cursor.label(property.display_name, 24, "left", false)
         mnav.make_sensor()
@@ -408,11 +591,13 @@ end
 -- scratch variables
 local A
 local last_viewed_category
+local category_bar_scroll = {}
 local main_scroll = {}
 function menu.main()
     local screen_width = cursor.width
     local jump_to_category = nil
     local sp_seletor_sid
+    local search_sid
 
     cursor.push_translation(slide_in_out(), 0) -- (1)
 
@@ -430,8 +615,8 @@ function menu.main()
 
     --#region category bar
 
-    -- TODO category bar should get a scroll
     cursor.change_anchor(0.5, 0)
+    cursor.auto_reshape = "height"
 
     icon_button(category_icon_size, "arrow-left-circle-fill")
     tooltip("right", "Back", 24, "left")
@@ -448,9 +633,13 @@ function menu.main()
 
     cursor.shift_down()
     cursor.height = 10
-    draw_by_cursor.h_center_line(theme.white, 2)
+    draw_by_cursor.h_center_line(theme.white, 2, 8)
     cursor.shift_down()
-
+    cursor.bottom_to_screen()
+    scroll.start(category_bar_scroll)
+    if is_searching() then
+        suppress.push_disable()
+    end
     for i = 1, #categories do
         local category = categories[i]
         icon_button(category_icon_size, category_icons[category.name])
@@ -461,6 +650,10 @@ function menu.main()
         tooltip("right", category_tooltip_text[category.name], 24, "left")
         cursor.shift_down()
     end
+    if is_searching() then
+        suppress.pop_disable()
+    end
+    scroll.finish(3, 0, 0, 0, 0)
 
     --#endregion
 
@@ -490,9 +683,13 @@ function menu.main()
         draw_by_cursor.label(category.name, 32, "left", false)
         cursor.shift_down(10)
 
+        -- make sure the cursor height set above is used to expand areas, not the size of any elements within.
+        cursor.auto_area_expansion = "cursor"
+        cursor.clip_left(16)
         for j = 1, #category do
             draw_setting(category[j])
         end
+        cursor.clip_left(-16)
 
         cursor.auto_area_expansion = "no" -- don't interfere with scroll content area
         local res_id, pid = blank_background.finish(6, 0, 8, 8)
@@ -512,6 +709,10 @@ function menu.main()
 
         cursor.shift_down(10)
     end
+    cursor.auto_reshape = "both"
+    cursor.y = cursor.y + 30
+    draw_by_cursor.label("Hint: Hold down on a setting to reset it.", 16, "left", false)
+    draw_by_cursor.top_line(theme.white)
 
     scroll.finish(8, 12, 8, 28, 200)
 
@@ -540,6 +741,7 @@ function menu.main()
     if mnav.get_clicked(sp_seletor_sid) then
         ui.layer.push(profile_dropdown)
     end
+    tooltip("bottom", "Switch settings profile", 16, "center")
 
     cursor.width = 28
     cursor.change_anchor(0.5, 0.5)
@@ -550,8 +752,35 @@ function menu.main()
 
     cursor.pop()
     cursor.auto_reshape = "no"
-    cursor.change_anchor(0.5)
-    draw_by_cursor.label("Search", 24, "left", false)
+
+    search_sid = mnav.make_sensor()
+    if mnav.is_hovering(search_sid) and not typing.is_editing(search_state) then
+        -- use scrollbar colors since they work well
+        if mnav.get_holding(search_sid) then
+            draw_by_cursor.rectangle(theme.grabbed_scrollbar)
+        else
+            draw_by_cursor.rectangle(theme.scrollbar)
+        end
+    end
+    typing.make_text_entry(search_state, search_sid)
+
+    cursor.clip(12, 0, 4, 0)
+    if is_searching() then
+        cursor.push()
+        cursor.change_anchor(1, 0.5)
+        cursor.width = 48
+        cursor.change_anchor(0.5)
+        cursor.auto_reshape = "both"
+        icon_button(32, "x-square")
+        tooltip("bottom", "Clear search", 16, "center")
+        if mnav.get_clicked() then
+            typing.truncate(search_state)
+        end
+        cursor.pop()
+    end
+
+    cursor.clip_right(48)
+    typing.draw_text_entry(search_state, 32, "Search settings")
 
     cursor.pop() -- (3.2)
 

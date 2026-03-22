@@ -1,5 +1,6 @@
 local signal = require("ui2.anim.signal")
 local settings = require("config").settings
+local ohui = require("ohui")
 local ui_settings = require("ohui").settings
 local auto_gui_scale = require("ui2.auto_gui_scale")
 
@@ -10,6 +11,8 @@ function ui2.update()
 end
 
 function ui2.process_event(name, a, b, c, d, e, f)
+    ohui.push_event(name, a, b, c, d, e, f)
+
     -- intercept the resize event for auto ui scaling
     if name == "resize" and settings.get("gui_scale") == 0 then
         ui_settings.scale = auto_gui_scale(a, b)
