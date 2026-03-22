@@ -62,10 +62,7 @@ local function add_input(name, versions)
     for method_name, method in pairs(game_input_methods) do
         local defaults = method.defaults[name]
         if defaults and #defaults > 0 then
-            table.insert(default_bindings, {
-                method = method_name,
-                bindings = defaults,
-            })
+            default_bindings[method_name] = defaults
         end
     end
     add_setting("Input", name, default_bindings, {
@@ -325,8 +322,8 @@ add_setting("hidden", "camera_shake_mult", 1, { game_version = 21 })
 
 --#region Input settings
 
-add_input("right", { 192, 20, 21 })
 add_input("left", { 192, 20, 21 })
+add_input("right", { 192, 20, 21 })
 add_input("focus", { 192, 20, 21 })
 add_input("swap", { 20, 21 })
 add_input("exit", { 192, 20, 21, 3 })

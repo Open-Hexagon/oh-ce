@@ -95,22 +95,20 @@ local mapping = {
 function game_input.get(input_name)
     input_name = mapping[input_name] or input_name
 
-    local config_methods = config.get(input_name) or { {
-        bindings = { input_name },
-        method = "keyboard",
-    } }
+    local config_methods = config.get(input_name) or {
+        keyboard = { input_name },
+    }
 
     local ret = false
-    for i = 1, #config_methods do
-        local method = config_methods[i]
-        for j = 1, #method.bindings do
-            local key = method.method .. "_" .. method.bindings[j]
+    for method_name, bindings in pairs(config_methods) do
+        for j = 1, #bindings do
+            local key = method_name .. "_" .. bindings[j]
             local state
             if mode == "replaying" then
                 -- the input state would have been set up by the update function
                 state = input_state[key] or false
             else
-                state = game_input_methods[method.method].is_down(method.bindings[j])
+                state = game_input_methods[method_name].is_down(bindings[j])
                 if mode == "recording" then
                     if game_input.replay == nil then
                         error("attempted to record input without active replay")

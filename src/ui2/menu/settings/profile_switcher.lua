@@ -16,7 +16,7 @@ local typing = ui.control.typing
 local profile_display_list = settings.profile_display_list
 local set_error_message = require("ui2.menu.debug").set_error_message
 
-local bg_color, shadow40_color, shadow20_color, menu_width, category_bar_width, category_icon_size, fade_down_shader =
+local bg_color, shadow40_color, menu_width, category_bar_width, category_icon_size, fade_down_shader =
     ...
 
 local slide_in_out = signal.new_queue(-menu_width)
