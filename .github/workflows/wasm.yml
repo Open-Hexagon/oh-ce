@@ -58,8 +58,7 @@ jobs:
         # with newer meson versions the deps folder should be in the builds folder
         # but the one from the github runner needs it outside
         mkdir deps
-        ln -s /libs/lua-5.1.5/src deps/include
-        tree .
+        ln -s ../megasource-web/libs/lua-5.1.5/src deps/include
         mkdir build
         cd build
         meson setup --cross-file ../../extra/web/wasm.txt -Dlua_version=vendor -Dstatic=true --buildtype release ..
