@@ -59,6 +59,7 @@ jobs:
         # but the one from the github runner needs it outside
         mkdir deps
         ln -s /libs/lua-5.1.5/src deps/include
+        tree .
         mkdir build
         cd build
         meson setup --cross-file ../../extra/web/wasm.txt -Dlua_version=vendor -Dstatic=true --buildtype release ..
