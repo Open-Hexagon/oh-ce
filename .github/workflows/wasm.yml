@@ -52,17 +52,15 @@ jobs:
     - name: Build cffi-lua
       if: steps.cache-build.outputs.cache-hit != 'true'
       run: |
+        # make sure meson finds lua headers
+        mkdir lua_headers
+        ln -s /libs/lua-5.1.5/src lua_headers/include
+        # actually build it
         git clone https://github.com/q66/cffi-lua
         cd cffi-lua
-        # make sure meson finds lua headers
-        # with newer meson versions the deps folder should be in the builds folder
-        # but the one from the github runner needs it outside
-        mkdir deps
-        ln -s /libs/lua-5.1.5/src deps/include
-        tree .
         mkdir build
         cd build
-        meson setup --cross-file ../../extra/web/wasm.txt -Dlua_version=vendor -Dstatic=true --buildtype release ..
+        meson setup --cross-file ../../extra/web/wasm.txt -Ddeps_dir=../lua_headers -Dlua_version=vendor -Dstatic=true --buildtype release ..
         ninja all
         mv libcffi-lua-5.1.a subprojects/libffi/src/libffi.a ../../megasource-web
         cd ../..
