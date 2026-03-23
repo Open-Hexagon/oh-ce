@@ -56,7 +56,7 @@ jobs:
         cd cffi-lua
         mkdir build
         cd build
-        # lua.hpp is expected at cffi-lua/<deps_dir>/include/lua.hpp, in later meson versions this'd be cffi-lua/build/<deps_dir>/include/lua.hpp
+        # lua.h is expected at cffi-lua/<deps_dir>/include/lua.h, in later meson versions this'd be cffi-lua/build/<deps_dir>/include/lua.hpp
         meson setup --cross-file ../../extra/web/wasm.txt -Ddeps_dir=../extra/web -Dlua_version=vendor -Dstatic=true --buildtype release ..
         ninja all
         mv libcffi-lua-5.1.a subprojects/libffi/src/libffi.a ../../megasource-web
