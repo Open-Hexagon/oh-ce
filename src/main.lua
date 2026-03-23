@@ -322,7 +322,8 @@ function love.run()
         if args.ui_scale then
             ui_settings.scale = args.ui_scale
         end
-        ui_settings.overlay_grid = args.grid
+
+        ui_settings.overlay_grid = args.overlay_grid
         ui_settings.overlay_masks = args.overlay_masks
         ui_settings.overlay_mouse_sensors = args.overlay_mouse_sensors
         ui_settings.overlay_scroll = args.overlay_scroll

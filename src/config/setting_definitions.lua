@@ -1,8 +1,8 @@
 local game_input_methods = require("game_input.methods")
 local ohui = require("ohui")
 local ui_settings = ohui.settings
-local auto_gui_scale = require("ui2.auto_gui_scale")
 local buffer = require("string.buffer")
+local extmath = require("ui2.extmath")
 
 local categories, properties = ...
 
@@ -168,17 +168,27 @@ add_setting(
 
 --#region UI settings
 
+local GUI_SCALE_MAX = 3
+local C = math.sqrt(GUI_SCALE_MAX)
+
+-- This currently seems to be the best place to put this function, even though it's weird.
+
+local function auto_gui_scale(width, height)
+    return math.max(0.5, extmath.round(C / math.max(1920 / width, 1080 / height), 1))
+end
+
 add_setting("UI", "gui_scale", 1, {
     display_name = "GUI scale",
     min = 0,
-    max = 2,
+    max = GUI_SCALE_MAX,
     min_display_text = "Auto",
-    positions = 5,
+    positions = GUI_SCALE_MAX * 2 + 1,
     format = "%.1fx",
     show_positions = true,
     onchange = function(value)
         if value > 0 then
-            ui_settings.scale = value
+            -- scale by apparent area, thus use sqrt of value
+            ui_settings.scale = extmath.round(math.sqrt(value), 1)
         elseif value == 0 then
             ui_settings.scale = auto_gui_scale(love.graphics.getDimensions())
         else
@@ -316,6 +326,7 @@ add_setting("Display", "msaa", 3, {
     tooltip = "Multisample Anti-Aliasing",
     switch_unit_width = 60,
     options = { "None", "2x", "4x", "8x" },
+    -- TODO game_handler canvas needs to be replaced to update msaa
     onchange = function(value)
         local w, h, mode = love.window.getMode()
         mode.msaa = 2 ^ (value - 1)
@@ -353,3 +364,5 @@ add_input("exit", { 192, 20, 21, 3 })
 add_input("restart", { 192, 20, 21, 3 })
 
 --#endregion
+
+return auto_gui_scale

@@ -114,9 +114,9 @@ function profile_dropdown.main()
         cursor.shift_down()
     end
     cursor.height = 8
-    ui.draw.set_shader(fade_down_shader)
+    draw.set_shader(fade_down_shader)
     draw_by_cursor.rectangle(shadow40_color)
-    ui.draw.set_shader()
+    draw.set_shader()
     scroll.finish(8, 0, 0, 0, 0)
     cursor.v_fit_screen()
     draw_by_cursor.left_line(theme.white, 2, "inside")
@@ -201,8 +201,6 @@ end
 -- hide settings with unsatisfied dependencies
 -- hide and disable categories
 
--- scratch variables
-local A
 local last_viewed_category
 local category_bar_scroll = {}
 local main_scroll = {}
@@ -308,17 +306,17 @@ function menu.main()
         local res_id, pid = blank_background.finish(6, 0, 8, 8)
         cursor.auto_area_expansion = "placement"
 
-        if ui.area_element.is_auto_scroll_active() and i == last_viewed_category then
+        if area_element.is_auto_scroll_active() and i == last_viewed_category then
             draw.next_takes_reservation(res_id)
             draw_by_id.rectangle(pid, "line", 0, 0, 2, unpack(theme.accent_color))
         else
             draw.close_reservation(res_id)
         end
 
-        A = cursor.height
+        local h = cursor.height
         cursor.height = 10000
         scroll.auto_scroll_region(jump_to_category == i)
-        cursor.height = A
+        cursor.height = h
 
         cursor.shift_down(10)
     end
@@ -330,9 +328,9 @@ function menu.main()
     scroll.finish(8, 12, 8, 28, 200)
 
     cursor.height = 8
-    ui.draw.set_shader(fade_down_shader)
+    draw.set_shader(fade_down_shader)
     draw_by_cursor.rectangle(shadow40_color)
-    ui.draw.set_shader()
+    draw.set_shader()
 
     --#endregion
 

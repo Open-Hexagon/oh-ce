@@ -75,7 +75,8 @@ settings.categories = categories
 settings.properties = properties
 
 -- load setting definitions
-loadfile("src/config/setting_definitions.lua")(categories, properties)
+---@type fun(width:number, height:number): number
+settings.auto_gui_scale = loadfile("src/config/setting_definitions.lua")(categories, properties)
 
 -- current profile setting values
 local current_settings = {}
