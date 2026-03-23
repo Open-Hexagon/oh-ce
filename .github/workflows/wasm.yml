@@ -54,7 +54,7 @@ jobs:
       run: |
         # make sure meson finds lua headers
         mkdir lua_headers
-        ln -s /libs/lua-5.1.5/src lua_headers/include
+        ln /libs/lua-5.1.5/src lua_headers/include
         # actually build it
         git clone https://github.com/q66/cffi-lua
         cd cffi-lua
