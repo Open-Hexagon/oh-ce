@@ -20,6 +20,10 @@ local assets = require("asset_system")
 local video_encoder = require("game_handler.video")
 local player_tracker = require("server.player_tracker")
 
+local ohui = require("ohui")
+ohui.theme.set_default("font_path", "assets/font/open-pentagon.ttf")
+ohui.theme.set_default("icon_font_path", "assets/font/open-pentagon.ttf")
+
 local log = logging.get_logger("MAIN")
 
 local exit_channel = love.thread.getChannel("scheduled_exit")
@@ -316,7 +320,6 @@ function love.run()
     do
         local settings = config.settings
         local ui2 = require("ui2")
-        local ohui = require("ohui")
         local ui_settings = ohui.settings
 
         if args.ui_scale then
@@ -327,9 +330,6 @@ function love.run()
         ui_settings.overlay_masks = args.overlay_masks
         ui_settings.overlay_mouse_sensors = args.overlay_mouse_sensors
         ui_settings.overlay_scroll = args.overlay_scroll
-
-        ohui.theme.set_default("font_path", "assets/font/open-pentagon.ttf")
-        ohui.theme.set_default("icon_font_path", "assets/font/open-pentagon.ttf")
 
         -- TODO: There isn't a very reliable way to detect whether there's a physical keyboard connected to your device
         -- TODO: This should probably be replaced by something better.

@@ -122,8 +122,7 @@ local function make_async_function(_, fn)
     end
 end
 
----@class async
----@operator call(function):(fun(...):Promise)
+---@overload fun(fn:function):(fun(...):Promise)
 local async = setmetatable({}, {
     __call = make_async_function,
 })

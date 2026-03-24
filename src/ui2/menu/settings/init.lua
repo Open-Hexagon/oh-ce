@@ -127,6 +127,18 @@ end
 
 local settings_table = settings.get_all()
 
+local function are_dependencies_satisfied(property)
+    if not property.dependencies then
+        return true
+    end
+    for name, required_value in pairs(property.dependencies) do
+        if settings_table[name] ~= required_value then
+            return false
+        end
+    end
+    return true
+end
+
 local function refresh_visuals(name)
     local state = id[name]
     local property = settings.properties[name]
@@ -146,18 +158,69 @@ local function refresh_all_visuals()
     end
 end
 
----@type function, function
-local draw_setting, intercept_inputs =
-    loadfile("src/ui2/menu/settings/draw_setting.lua")(refresh_visuals, refresh_all_visuals, bg_color, id)
-
-local menu = {}
-menu.intercept_inputs = intercept_inputs
-
 local search_state = { text = "" }
 
 local function is_searching()
-    return #search_state.text > 0
+    return typing.has_text(search_state)
 end
+
+local search_results = {}
+local search_results_index = 0
+
+local function run_search()
+    if not is_searching() then
+        return
+    end
+
+    local matches, score, marked_text, t
+    local old_index = search_results_index
+    search_results_index = 0
+
+    for _, property in pairs(settings.properties) do
+        if property.category == "hidden" then
+            goto continue
+        end
+        if not are_dependencies_satisfied(property) then
+            goto continue
+        end
+        matches, score, marked_text = search(search_state.text, property.display_name, "%tc%", "%hc%")
+        if not matches then
+            goto continue
+        end
+        search_results_index = search_results_index + 1
+        search_results[search_results_index] = search_results[search_results_index] or {}
+        t = search_results[search_results_index]
+        t[1] = score
+        t[2] = marked_text
+        t[3] = property
+
+        ::continue::
+    end
+
+    -- clear old entries
+    for i = search_results_index + 1, old_index do
+        search_results[i] = nil
+    end
+    table.sort(search_results, function(a, b)
+        if a[1] == b[1] then
+            return a[3].display_name < b[3].display_name
+        end
+        return a[1] > b[1]
+    end)
+end
+
+---@type function, function
+local draw_setting, intercept_inputs = loadfile("src/ui2/menu/settings/draw_setting.lua")(
+    refresh_visuals,
+    refresh_all_visuals,
+    bg_color,
+    id,
+    are_dependencies_satisfied,
+    run_search
+)
+
+local menu = {}
+menu.intercept_inputs = intercept_inputs
 
 local category_icons = {
     Gameplay = "hexagon",
@@ -193,8 +256,6 @@ function menu.on_pop(release)
     slide_in_out:keyframe(0.1, -menu_width, ease.out_sine)
     slide_in_out:call(release)
 end
-
--- TODO input settings
 
 -- TODO if search is on...
 -- sort by score
@@ -280,46 +341,59 @@ function menu.main()
     --#region settings list
 
     scroll.start(main_scroll)
+    -- forces the scroll content to be a constant width, even if the scroll region needs to be shrunk by the window being too small.
     cursor.width = menu_width - category_bar_width
-
     cursor.clip(12, 8, 28, 0)
 
     cursor.auto_reshape = "height"
 
-    for i = 1, #categories do
-        local category = categories[i]
-
-        blank_background.start(1)
-
-        draw_by_cursor.label(category.name, 32, "left", false)
-        cursor.shift_down(10)
-
-        -- make sure the cursor height set above is used to expand areas, not the size of any elements within.
+    if is_searching() then
         cursor.auto_area_expansion = "cursor"
         cursor.clip_left(16)
-        for j = 1, #category do
-            draw_setting(category[j])
+        -- use while loop since search results migh change
+        local j = 1
+        while j <= search_results_index do
+            draw_setting(search_results[j][3], search_results[j][2])
+            j = j + 1
         end
         cursor.clip_left(-16)
+    else
+        for i = 1, #categories do
+            local category = categories[i]
 
-        cursor.auto_area_expansion = "no" -- don't interfere with scroll content area
-        local res_id, pid = blank_background.finish(6, 0, 8, 8)
-        cursor.auto_area_expansion = "placement"
+            blank_background.start(1)
 
-        if area_element.is_auto_scroll_active() and i == last_viewed_category then
-            draw.next_takes_reservation(res_id)
-            draw_by_id.rectangle(pid, "line", 0, 0, 2, unpack(theme.accent_color))
-        else
-            draw.close_reservation(res_id)
+            draw_by_cursor.label(category.name, 32, "left", false)
+            cursor.shift_down(10)
+
+            cursor.auto_area_expansion = "cursor"
+            cursor.clip_left(16)
+            for j = 1, #category do
+                draw_setting(category[j])
+            end
+            cursor.clip_left(-16)
+
+            cursor.auto_area_expansion = "no" -- don't let blank background interfere with scroll content area
+            local res_id, pid = blank_background.finish(6, 0, 8, 8)
+            cursor.auto_area_expansion = "placement"
+
+            if area_element.is_auto_scroll_active() and i == last_viewed_category then
+                draw.next_takes_reservation(res_id)
+                draw_by_id.rectangle(pid, "line", 0, 0, 2, unpack(theme.accent_color))
+            else
+                draw.close_reservation(res_id)
+            end
+
+            local h = cursor.height
+            cursor.height = 10000
+            scroll.auto_scroll_region(jump_to_category == i)
+            cursor.height = h
+
+            cursor.shift_down(10)
         end
-
-        local h = cursor.height
-        cursor.height = 10000
-        scroll.auto_scroll_region(jump_to_category == i)
-        cursor.height = h
-
-        cursor.shift_down(10)
     end
+
+    -- draw the hint text at the bottom of the list
     cursor.auto_reshape = "both"
     cursor.y = cursor.y + 30
     draw_by_cursor.label("Hint: Hold down on a setting's label text to reset it.", 16, "left", false)
@@ -327,6 +401,7 @@ function menu.main()
 
     scroll.finish(8, 12, 8, 28, 200)
 
+    -- draw the shadow at the top of the scroll that separates it from the profile dropdown
     cursor.height = 8
     draw.set_shader(fade_down_shader)
     draw_by_cursor.rectangle(shadow40_color)
@@ -336,8 +411,10 @@ function menu.main()
 
     cursor.pop() -- (4.2)
 
-    cursor.h_split(search_bar_height, true)
-    cursor.pop()
+    --#region profile dropdown menu
+
+    cursor.h_split(search_bar_height, true) -- (5)
+    cursor.pop() -- (5.1)
     cursor.auto_reshape = "no"
     draw_by_cursor.top_line(shadow20_color, 1, "inside", 1)
     sp_seletor_sid = mnav.make_sensor()
@@ -361,7 +438,12 @@ function menu.main()
     cursor.change_anchor(0, 0.5)
     draw_by_cursor.label(settings.get_current_profile(), 20, "left", false)
 
-    cursor.pop()
+    --#endregion
+
+    cursor.pop() -- (5.2)
+
+    --#region search bar
+
     cursor.auto_reshape = "no"
 
     search_sid = mnav.make_sensor()
@@ -374,6 +456,10 @@ function menu.main()
         end
     end
     typing.make_text_entry(search_state, search_sid)
+
+    if typing.just_modified(search_state) and is_searching() then
+        run_search()
+    end
 
     cursor.clip(12, 0, 4, 0)
     if is_searching() then
@@ -392,6 +478,8 @@ function menu.main()
 
     cursor.clip_right(48)
     typing.draw_text_entry(search_state, 32, "Search settings")
+
+    --#endregion
 
     cursor.pop() -- (3.2)
 

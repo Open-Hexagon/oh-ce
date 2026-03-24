@@ -14,6 +14,7 @@ local tooltip = ui.decorator.tooltip
 local toggle = ui.element.toggle
 local slider = ui.element.slider
 local switch = ui.element.switch
+local ansi = text.ansi
 
 local set_error_message = require("ui2.menu.debug").set_error_message
 local settings = require("config").settings
@@ -21,12 +22,33 @@ local ease = require("ui2.anim.ease")
 
 local settings_table = settings.get_all()
 
----@type function, function, table, table
-local refresh_visuals, refresh_all_visuals, bg_color, id = ...
+---@type function, function, table, table, function, function
+local refresh_visuals, refresh_all_visuals, bg_color, id, are_dependencies_satisfied, run_search = ...
 
 local resetting_bar_color = { 0.6, 0, 0, 1 }
+local ansi_search_hl_color = ansi.to_sequence(theme.cyan)
+local ansi_text_color = ansi.to_sequence(theme.text_color)
+local ansi_accent_color = ansi.to_sequence(theme.accent_color)
+local ansi_yellow = ansi.to_sequence(theme.yellow)
+local icnstr_warning = text.get_icon_string("exclamation-triangle-fill")
 
-local function draw_toggle(state, property)
+---@param mt string
+---@param tc string
+---@param hc string
+---@return string, number
+local function sub_marked_text(mt, tc, hc)
+    return mt:gsub("%%tc%%", tc):gsub("%%hc%%", hc)
+end
+
+local function draw_toggle(state, property, marked_search_text)
+    local display_text
+    if marked_search_text then
+        display_text =
+            sub_marked_text(marked_search_text, state.on and ansi_accent_color or ansi_text_color, ansi_search_hl_color)
+    else
+        display_text = (state.on and ansi_accent_color or ansi_text_color) .. property.display_name
+    end
+
     local is_resetting = false
     local sid = mnav.declare_sensor_id()
     local reset_sid = mnav.declare_sensor_id()
@@ -48,6 +70,7 @@ local function draw_toggle(state, property)
                 if property.onchange then
                     property.onchange(state.value)
                 end
+                run_search() -- rerun in case dependencies have changed
                 mnav.soft_release()
             end
         else
@@ -68,13 +91,7 @@ local function draw_toggle(state, property)
 
         cursor.push()
         cursor.auto_reshape = "width"
-        draw_by_cursor.label(
-            property.display_name,
-            24,
-            "left",
-            false,
-            state.on and theme.accent_color or theme.text_color
-        )
+        draw_by_cursor.label(display_text, 24, "left", false)
         mnav.make_sensor(reset_sid)
         cursor.pop()
 
@@ -97,6 +114,7 @@ local function draw_toggle(state, property)
             if property.name == "official_mode" then
                 refresh_all_visuals()
             end
+            run_search() -- rerun in case dependencies have changed
         end
 
         -- draw the is resetting text
@@ -121,7 +139,14 @@ end
 
 local HOLD_ACTIVATE_TIME = 0.2
 local HOLD_REPEAT_PERIOD = 0.008
-local function draw_slider(state, property)
+local function draw_slider(state, property, marked_search_text)
+    local display_text
+    if marked_search_text then
+        display_text = sub_marked_text(marked_search_text, ansi_text_color, ansi_search_hl_color)
+    else
+        display_text = property.display_name
+    end
+
     local is_resetting = false
     local sid = mnav.declare_sensor_id()
     local sid_plus, sid_minus
@@ -141,6 +166,7 @@ local function draw_slider(state, property)
                 if property.onchange then
                     property.onchange(state.value)
                 end
+                run_search() -- rerun in case dependencies have changed
                 mnav.soft_release()
             end
         else
@@ -159,7 +185,7 @@ local function draw_slider(state, property)
 
         cursor.push()
         cursor.auto_reshape = "width"
-        draw_by_cursor.label(property.display_name, 24, "left", false)
+        draw_by_cursor.label(display_text, 24, "left", false)
         mnav.make_sensor(reset_sid)
         cursor.pop()
 
@@ -237,6 +263,7 @@ local function draw_slider(state, property)
             if property.onchange then
                 property.onchange(state.value)
             end
+            run_search() -- rerun in case dependencies have changed
         end
 
         if type(property.format) == "string" and type(display_value) == "number" then
@@ -268,7 +295,14 @@ local function draw_slider(state, property)
     cursor.shift_down()
 end
 
-local function draw_switch(state, property)
+local function draw_switch(state, property, marked_search_text)
+    local display_text
+    if marked_search_text then
+        display_text = sub_marked_text(marked_search_text, ansi_text_color, ansi_search_hl_color)
+    else
+        display_text = property.display_name
+    end
+
     local is_resetting = false
     local sid = mnav.declare_sensor_id()
     local reset_sid = mnav.declare_sensor_id()
@@ -285,6 +319,7 @@ local function draw_switch(state, property)
                 if property.onchange then
                     property.onchange(state.position)
                 end
+                run_search() -- rerun in case dependencies have changed
                 mnav.soft_release()
             end
         else
@@ -303,7 +338,7 @@ local function draw_switch(state, property)
 
         cursor.push()
         cursor.auto_reshape = "width"
-        draw_by_cursor.label(property.display_name, 24, "left", false)
+        draw_by_cursor.label(display_text, 24, "left", false)
         mnav.make_sensor(reset_sid)
         cursor.pop()
 
@@ -326,6 +361,7 @@ local function draw_switch(state, property)
             if property.onchange then
                 property.onchange(state.position)
             end
+            run_search() -- rerun in case dependencies have changed
         end
 
         -- draw the is resetting text
@@ -352,18 +388,10 @@ end
 local input_intercepter = {}
 local remapping
 
-function input_intercepter.on_pop()
-    remapping = nil
-end
-
 function input_intercepter.main()
     draw_by_cursor.rectangle({ 0, 0, 0, 0.8 })
     cursor.change_anchor(0.5)
     draw_by_cursor.label("Press any button", 32, "center", false)
-
-    if mnav.clicked then
-        layer.pop()
-    end
 end
 
 local input_method_order = {
@@ -412,26 +440,29 @@ local function intercept_inputs(name, a, b, c, d, e, f)
     if not remapping then
         return true
     end
+
     local methods = settings_table[remapping]
     if name == "keypressed" then
         methods.keyboard = methods.keyboard or {}
         if contains(methods.keyboard, a) then
-            set_error_message(string.format("Keyboard already has key %s mapped", a:upper()))
+            set_error_message(string.format("%s input already has keyboard key %s mapped", remapping, a:upper()))
         else
             table.insert(methods.keyboard, a)
             settings.set_dirty_flag()
             find_duplicate_bindings()
         end
+        remapping = nil
         layer.pop()
     elseif name == "mousepressed" then
         methods.mouse = methods.mouse or {}
         if contains(methods.mouse, c) then
-            set_error_message(string.format("Mouse already has button %d mapped", c))
+            set_error_message(string.format("%s input already has mouse button %d mapped", remapping, c))
         else
             table.insert(methods.mouse, c)
             settings.set_dirty_flag()
             find_duplicate_bindings()
         end
+        remapping = nil
         layer.pop()
     end
 
@@ -459,8 +490,8 @@ local function translate_binding(method_name, binding)
     end
 end
 
-local function draw_input_editor(state, property)
-    local sid, remove_input_sid, add_input_sid, reset_sid, is_resetting, r, w
+local function draw_input_editor(state, property, marked_search_text)
+    local sid, remove_input_sid, add_input_sid, reset_sid, is_resetting, r, w, display_text
     sid = mnav.declare_sensor_id()
     reset_sid = mnav.declare_sensor_id()
     cursor.y = cursor.y + 8
@@ -474,10 +505,6 @@ local function draw_input_editor(state, property)
                 state._reset_timer = 1
                 settings.reset_setting(property.name)
                 find_duplicate_bindings()
-                refresh_visuals(property.name)
-                if property.onchange then
-                    property.onchange(state.position)
-                end
                 mnav.soft_release()
             end
         else
@@ -578,16 +605,24 @@ local function draw_input_editor(state, property)
         cursor.auto_reshape = "width"
         cursor.change_anchor(0, 0.5)
         if binding_count == 0 then
-            draw_by_cursor.label(
-                string.format("%s %s", text.get_icon_string("exclamation-triangle-fill"), property.display_name),
-                24,
-                "left",
-                false,
-                theme.yellow
-            )
+            if marked_search_text then
+                display_text = ansi_yellow
+                    .. icnstr_warning
+                    .. " "
+                    .. sub_marked_text(marked_search_text, ansi_yellow, ansi_search_hl_color)
+            else
+                display_text = ansi_yellow .. icnstr_warning .. " " .. property.display_name
+            end
+
+            draw_by_cursor.label(display_text, 24, "left", false)
             tooltip("bottom", "No mappings!\nThis input is unable to be triggered.", 16, "center", 180, nil, reset_sid)
         else
-            draw_by_cursor.label(property.display_name, 24, "left", false)
+            if marked_search_text then
+                display_text = sub_marked_text(marked_search_text, ansi_text_color, ansi_search_hl_color)
+            else
+                display_text = property.display_name
+            end
+            draw_by_cursor.label(display_text, 24, "left", false)
         end
         mnav.make_sensor(reset_sid)
     end
@@ -633,20 +668,19 @@ local function draw_input_editor(state, property)
     mnav.declare_sensor_id()
 end
 
-local function are_dependencies_satisfied(property)
-    if not property.dependencies then
-        return true
-    end
-    for name, required_value in pairs(property.dependencies) do
-        if settings_table[name] ~= required_value then
-            return false
-        end
-    end
-    return true
-end
+---@param property table
+---@param marked_search_text string?
+local function draw_setting(property, marked_search_text)
+    -- assert(cursor.auto_area_expansion == "cursor")
+    -- assert(cursor.anchor_x == 0)
+    -- assert(cursor.anchor_y == 0)
 
-local function draw_setting(property)
-    local disable = not are_dependencies_satisfied(property)
+    local disable = false
+    if not marked_search_text then
+        -- search will already have omitted results without satisfied dependencies
+        disable = not are_dependencies_satisfied(property)
+    end
+
     if disable then
         suppress.push_disable()
     end
@@ -654,21 +688,28 @@ local function draw_setting(property)
     local state = id[property.name]
 
     if type(property.default) == "boolean" then
-        draw_toggle(state, property)
+        draw_toggle(state, property, marked_search_text)
     elseif property.options then
-        draw_switch(state, property)
+        draw_switch(state, property, marked_search_text)
     elseif type(property.default) == "number" then
         if not (property.min and property.max) then
             return
         elseif property.positions then
-            draw_slider(state, property)
+            draw_slider(state, property, marked_search_text)
         else
             return
         end
     elseif property.category == "Input" then
-        draw_input_editor(state, property)
+        draw_input_editor(state, property, marked_search_text)
     else
-        draw_by_cursor.label(property.display_name, 24, "left", false)
+        local display_text
+        if marked_search_text then
+            display_text =
+                sub_marked_text(marked_search_text, ansi.to_sequence(theme.text_color), ansi.to_sequence(theme.cyan))
+        else
+            display_text = property.display_name
+        end
+        draw_by_cursor.label(display_text, 24, "left", false)
         cursor.shift_down()
     end
 
