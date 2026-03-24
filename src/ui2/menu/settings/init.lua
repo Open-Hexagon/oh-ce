@@ -158,7 +158,7 @@ local function refresh_all_visuals()
     end
 end
 
-local search_state = { text = "" }
+local search_state = {}
 
 local function is_searching()
     return typing.has_text(search_state)
@@ -250,7 +250,10 @@ function menu.on_push()
     refresh_all_visuals()
 end
 
-menu.on_reveal = refresh_all_visuals
+function menu.on_reveal()
+    run_search()
+    refresh_all_visuals()
+end
 
 function menu.on_pop(release)
     slide_in_out:keyframe(0.1, -menu_width, ease.out_sine)
