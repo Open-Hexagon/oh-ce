@@ -13,10 +13,7 @@ local scroll = area_element.scroll
 local blank_background = area_element.blank_background
 local icon_button = ui.element.icon_button
 local tooltip = ui.decorator.tooltip
-local suppress = ui.suppress
-local replace_icon_sequences = text.replace_icon_sequences
 local search = text.search
-local ansi = text.ansi
 local typing = ui.control.typing
 
 local signal = require("ui2.anim.signal")
@@ -25,6 +22,7 @@ local set_error_message = require("ui2.menu.debug").set_error_message
 local settings = require("config").settings
 local profile_display_list = settings.profile_display_list
 local categories = settings.categories
+local properties = settings.properties
 
 local id = ui.new_id_table()
 
@@ -141,7 +139,7 @@ end
 
 local function refresh_visuals(name)
     local state = id[name]
-    local property = settings.properties[name]
+    local property = properties[name]
     state.initialized = nil
     if type(property.default) == "boolean" then
         state.on = settings.get(name)
@@ -153,7 +151,7 @@ local function refresh_visuals(name)
 end
 
 local function refresh_all_visuals()
-    for name, _ in pairs(settings.properties) do
+    for name, _ in pairs(properties) do
         refresh_visuals(name)
     end
 end
@@ -176,24 +174,30 @@ local function run_search()
     local old_index = search_results_index
     search_results_index = 0
 
-    for _, property in pairs(settings.properties) do
-        if property.category == "hidden" then
+    local category, property
+    for i = 1, #categories do
+        category = categories[i]
+        if category.name == "hidden" then
             goto continue
         end
-        if not are_dependencies_satisfied(property) then
-            goto continue
+        for j = 1, #category do
+            property = category[j]
+            if not are_dependencies_satisfied(property) then
+                goto continue
+            end
+            matches, score, marked_text = search(search_state.text, property.display_name, "%tc%", "%hc%")
+            if not matches then
+                goto continue
+            end
+            search_results_index = search_results_index + 1
+            search_results[search_results_index] = search_results[search_results_index] or { true, true, true, true }
+            t = search_results[search_results_index]
+            t[1] = i
+            t[2] = score
+            t[3] = property
+            t[4] = marked_text
+            ::continue::
         end
-        matches, score, marked_text = search(search_state.text, property.display_name, "%tc%", "%hc%")
-        if not matches then
-            goto continue
-        end
-        search_results_index = search_results_index + 1
-        search_results[search_results_index] = search_results[search_results_index] or {}
-        t = search_results[search_results_index]
-        t[1] = score
-        t[2] = marked_text
-        t[3] = property
-
         ::continue::
     end
 
@@ -201,11 +205,15 @@ local function run_search()
     for i = search_results_index + 1, old_index do
         search_results[i] = nil
     end
+
     table.sort(search_results, function(a, b)
         if a[1] == b[1] then
-            return a[3].display_name < b[3].display_name
+            if a[2] == b[2] then
+                return a[3].display_name < b[3].display_name -- alphabetical
+            end
+            return a[2] > b[2] -- highest score
         end
-        return a[1] > b[1]
+        return a[1] < b[1] -- category order
     end)
 end
 
@@ -260,11 +268,6 @@ function menu.on_pop(release)
     slide_in_out:call(release)
 end
 
--- TODO if search is on...
--- sort by score
--- hide settings with unsatisfied dependencies
--- hide and disable categories
-
 local last_viewed_category
 local category_bar_scroll = {}
 local main_scroll = {}
@@ -312,9 +315,6 @@ function menu.main()
     cursor.shift_down()
     cursor.bottom_to_screen()
     scroll.start(category_bar_scroll)
-    if is_searching() then
-        suppress.push_disable()
-    end
     for i = 1, #categories do
         local category = categories[i]
         icon_button(category_icon_size, category_icons[category.name])
@@ -324,9 +324,6 @@ function menu.main()
         end
         tooltip("right", category_tooltip_text[category.name], 24, "left")
         cursor.shift_down()
-    end
-    if is_searching() then
-        suppress.pop_disable()
     end
     scroll.finish(3, 0, 0, 0, 0)
 
@@ -351,15 +348,43 @@ function menu.main()
     cursor.auto_reshape = "height"
 
     if is_searching() then
-        cursor.auto_area_expansion = "cursor"
-        cursor.clip_left(16)
-        -- use while loop since search results migh change
+        -- use while loops since search results might change
         local j = 1
+        local current_category_index
         while j <= search_results_index do
-            draw_setting(search_results[j][3], search_results[j][2])
-            j = j + 1
+            current_category_index = search_results[j][1]
+
+            blank_background.start(1)
+
+            draw_by_cursor.label(categories[current_category_index].name, 32, "left", false)
+            cursor.shift_down(10)
+
+            cursor.auto_area_expansion = "cursor"
+            cursor.clip_left(16)
+            while j <= search_results_index and search_results[j][1] == current_category_index do
+                draw_setting(search_results[j][3], search_results[j][4])
+                j = j + 1
+            end
+            cursor.clip_left(-16)
+
+            cursor.auto_area_expansion = "no" -- don't let blank background interfere with scroll content area
+            local res_id, pid = blank_background.finish(6, 0, 8, 8)
+            cursor.auto_area_expansion = "placement"
+
+            if area_element.is_auto_scroll_active() and current_category_index == last_viewed_category then
+                draw.next_takes_reservation(res_id)
+                draw_by_id.rectangle(pid, "line", 0, 0, 2, unpack(theme.accent_color))
+            else
+                draw.close_reservation(res_id)
+            end
+
+            local h = cursor.height
+            cursor.height = 10000
+            scroll.auto_scroll_region(jump_to_category == current_category_index)
+            cursor.height = h
+
+            cursor.shift_down(10)
         end
-        cursor.clip_left(-16)
     else
         for i = 1, #categories do
             local category = categories[i]
