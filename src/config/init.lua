@@ -180,11 +180,11 @@ function settings.set(name, value)
 end
 
 function settings.reset_setting(name)
-    local prop_def = properties[name]
-    if prop_def.default_serialized then
-        current_settings[name] = buffer.decode(prop_def.default_serialized)
+    local property = properties[name]
+    if property.default_serialized then
+        current_settings[name] = buffer.decode(property.default_serialized)
     else
-        current_settings[name] = prop_def.default
+        current_settings[name] = property.default
     end
     cs_dirty = true
 end

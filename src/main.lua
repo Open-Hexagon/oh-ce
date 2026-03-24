@@ -342,9 +342,6 @@ function love.run()
         ohui.layer.set_pinned_layer(require("ui2.menu.debug"))
         ohui.layer.push(require("ui2.menu.loading"))
 
-        -- apply fullscreen setting initially
-        -- config.properties.fullscreen.onchange(config.get("fullscreen"))
-
         local fps_limit = settings.get("fps_limit")
         local delta_target = 1 / fps_limit
         local last_time = love.timer.getTime()

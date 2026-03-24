@@ -4,6 +4,12 @@ local ui_settings = ohui.settings
 local buffer = require("string.buffer")
 local extmath = require("ui2.extmath")
 
+-- the categories table is indexed by category name or number
+-- properties within a category are indexed by number
+-- a category has a .name field with it's name
+
+-- the properties table is indexed by only category name
+
 local categories, properties = ...
 
 ---creates a category
