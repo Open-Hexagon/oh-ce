@@ -221,7 +221,6 @@ end
 local draw_setting, intercept_inputs = loadfile("src/ui2/menu/settings/draw_setting.lua")(
     refresh_visuals,
     refresh_all_visuals,
-    bg_color,
     id,
     are_dependencies_satisfied,
     run_search
@@ -271,6 +270,7 @@ end
 local last_viewed_category
 local category_bar_scroll = {}
 local main_scroll = {}
+local no_search_results_text = text.get_icon_string("question-circle-fill") .. " No search results"
 function menu.main()
     local screen_width = cursor.width
     local jump_to_category = nil
@@ -348,6 +348,18 @@ function menu.main()
     cursor.auto_reshape = "height"
 
     if is_searching() then
+        if typing.just_modified(search_state) then
+            run_search()
+        end
+
+        if search_results_index == 0 then
+            cursor.auto_area_expansion = "cursor"
+            cursor.height = 32
+            cursor.y = cursor.y + 30
+            draw_by_cursor.label(no_search_results_text, 24, "left", false, theme.yellow)
+            cursor.shift_down(10)
+        end
+
         -- use while loops since search results might change
         local j = 1
         local current_category_index
@@ -360,12 +372,10 @@ function menu.main()
             cursor.shift_down(10)
 
             cursor.auto_area_expansion = "cursor"
-            cursor.clip_left(16)
             while j <= search_results_index and search_results[j][1] == current_category_index do
                 draw_setting(search_results[j][3], search_results[j][4])
                 j = j + 1
             end
-            cursor.clip_left(-16)
 
             cursor.auto_area_expansion = "no" -- don't let blank background interfere with scroll content area
             local res_id, pid = blank_background.finish(6, 0, 8, 8)
@@ -395,11 +405,9 @@ function menu.main()
             cursor.shift_down(10)
 
             cursor.auto_area_expansion = "cursor"
-            cursor.clip_left(16)
             for j = 1, #category do
                 draw_setting(category[j])
             end
-            cursor.clip_left(-16)
 
             cursor.auto_area_expansion = "no" -- don't let blank background interfere with scroll content area
             local res_id, pid = blank_background.finish(6, 0, 8, 8)
@@ -420,12 +428,6 @@ function menu.main()
             cursor.shift_down(10)
         end
     end
-
-    -- draw the hint text at the bottom of the list
-    cursor.auto_reshape = "both"
-    cursor.y = cursor.y + 30
-    draw_by_cursor.label("Hint: Hold down on a setting's label text to reset it.", 16, "left", false)
-    draw_by_cursor.top_line(theme.white)
 
     scroll.finish(8, 12, 8, 28, 200)
 
@@ -457,7 +459,7 @@ function menu.main()
     if mnav.get_clicked(sp_seletor_sid) then
         layer.push(profile_dropdown)
     end
-    tooltip("bottom", "Switch settings profile", 16, "center")
+    tooltip("bottom", "Switch settings profile", 16, "left")
 
     cursor.width = 28
     cursor.change_anchor(0.5, 0.5)
@@ -485,10 +487,6 @@ function menu.main()
     end
     typing.make_text_entry(search_state, search_sid)
 
-    if typing.just_modified(search_state) and is_searching() then
-        run_search()
-    end
-
     cursor.clip(12, 0, 4, 0)
     if is_searching() then
         cursor.push()
@@ -497,7 +495,7 @@ function menu.main()
         cursor.change_anchor(0.5)
         cursor.auto_reshape = "both"
         icon_button(32, "x-square")
-        tooltip("bottom", "Clear search", 16, "center")
+        tooltip("bottom", "Clear search", 16, "left")
         if mnav.get_clicked() then
             typing.truncate(search_state)
         end

@@ -18,14 +18,12 @@ local ansi = text.ansi
 
 local set_error_message = require("ui2.menu.debug").set_error_message
 local settings = require("config").settings
-local ease = require("ui2.anim.ease")
 
 local settings_table = settings.get_all()
 
----@type function, function, table, table, function, function
-local refresh_visuals, refresh_all_visuals, bg_color, id, are_dependencies_satisfied, run_search = ...
+---@type function, function, table, function, function
+local refresh_visuals, refresh_all_visuals, id, are_dependencies_satisfied, run_search = ...
 
-local resetting_bar_color = { 0.6, 0, 0, 1 }
 local ansi_search_hl_color = ansi.to_sequence(theme.cyan)
 local ansi_text_color = ansi.to_sequence(theme.text_color)
 local ansi_accent_color = ansi.to_sequence(theme.accent_color)
@@ -40,7 +38,7 @@ local function sub_marked_text(mt, tc, hc)
     return mt:gsub("%%tc%%", tc):gsub("%%hc%%", hc)
 end
 
-local function draw_toggle(state, property, marked_search_text)
+local function draw_toggle(state, property, marked_search_text, disable)
     local display_text
     if marked_search_text then
         display_text =
@@ -49,51 +47,36 @@ local function draw_toggle(state, property, marked_search_text)
         display_text = (state.on and ansi_accent_color or ansi_text_color) .. property.display_name
     end
 
-    local is_resetting = false
+    local trigger_reset
     local sid = mnav.declare_sensor_id()
-    local reset_sid = mnav.declare_sensor_id()
     cursor.height = 32
     cursor.push()
     do
-        if mnav.get_holding(reset_sid) == mb.left then
-            state._reset_timer = state._reset_timer + love.timer.getDelta() * 2
-            is_resetting = state._reset_timer < 1 and state._reset_timer > 0
-            if state._reset_timer > 1 then
-                state._reset_timer = 1
-                settings.reset_setting(property.name)
-                if property.name == "official_mode" then
-                    -- ! see other comment below
-                    refresh_all_visuals()
-                else
-                    refresh_visuals(property.name)
-                end
-                if property.onchange then
-                    property.onchange(state.value)
-                end
-                run_search() -- rerun in case dependencies have changed
-                mnav.soft_release()
-            end
+        cursor.auto_reshape = "no"
+        cursor.change_anchor(0, 0.5)
+
+        if settings.is_default(property.name) then
+            cursor.clip_left(32)
+            mnav.declare_sensor_id()
         else
-            state._reset_timer = -1
+            cursor.v_split(32)
+            cursor.pop()
+            icon_button(24, "arrow-clockwise")
+            trigger_reset = mnav.get_clicked()
+            -- this tooltip doesn't conflict with the description tooltip because it comes first
+            tooltip("bottom", "Reset", 16, "left")
+            cursor.pop()
         end
 
-        cursor.auto_reshape = "no"
-        if is_resetting then
-            local w = cursor.width
-            cursor.width = w * ease.out_quad(state._reset_timer)
-            draw_by_cursor.rectangle(resetting_bar_color)
-            cursor.width = w
+        if disable then
+            suppress.push_disable()
         end
+
+        draw_by_cursor.label(display_text, 24, "left", false)
 
         cursor.change_anchor(1, 0.5)
         toggle(state, sid)
         cursor.change_anchor(0, 0.5)
-
-        cursor.push()
-        cursor.auto_reshape = "width"
-        draw_by_cursor.label(display_text, 24, "left", false)
-        mnav.make_sensor(reset_sid)
-        cursor.pop()
 
         if mnav.is_hovering(sid) then
             draw_by_cursor.top_line(theme.accent_color, 2, "center", -2)
@@ -104,7 +87,7 @@ local function draw_toggle(state, property, marked_search_text)
             tooltip("right", property.tooltip, 20, "left", nil, nil, sid)
         end
 
-        if mnav.get_clicked(sid) == mb.left then
+        if mnav.get_clicked(sid) == mb.left or trigger_reset then
             settings.set(property.name, state.on)
             if property.onchange then
                 property.onchange(state.on)
@@ -116,30 +99,21 @@ local function draw_toggle(state, property, marked_search_text)
             end
             run_search() -- rerun in case dependencies have changed
         end
-
-        -- draw the is resetting text
-        if is_resetting then
-            local r = draw.allocate_reservation(2)
-            cursor.change_anchor(0.5)
-            cursor.auto_reshape = "both"
-            draw_by_cursor.label("Resetting...", 16, "center", false)
-            cursor.outset(2)
-            draw.next_takes_reservation(r)
-            draw_by_cursor.rectangle(bg_color)
-            draw.next_takes_reservation(r)
-            draw_by_cursor.rectangle(theme.red, "line", 2)
-        end
     end
     cursor.peek()
     cursor.h_stretch(100)
     mnav.make_sensor(sid)
     cursor.pop()
     cursor.shift_down()
+
+    if disable then
+        suppress.pop_disable()
+    end
 end
 
 local HOLD_ACTIVATE_TIME = 0.2
 local HOLD_REPEAT_PERIOD = 0.008
-local function draw_slider(state, property, marked_search_text)
+local function draw_slider(state, property, marked_search_text, disable)
     local display_text
     if marked_search_text then
         display_text = sub_marked_text(marked_search_text, ansi_text_color, ansi_search_hl_color)
@@ -147,47 +121,40 @@ local function draw_slider(state, property, marked_search_text)
         display_text = property.display_name
     end
 
-    local is_resetting = false
     local sid = mnav.declare_sensor_id()
     local sid_plus, sid_minus
     local slider_sid = mnav.declare_sensor_id()
-    local reset_sid = mnav.declare_sensor_id()
     local display_value
     cursor.height = 32
     cursor.push()
     do
-        if mnav.get_holding(reset_sid) == mb.left then
-            state._reset_timer = state._reset_timer + love.timer.getDelta() * 2
-            is_resetting = state._reset_timer < 1 and state._reset_timer > 0
-            if state._reset_timer > 1 then
-                state._reset_timer = 1
+        cursor.auto_reshape = "no"
+        cursor.change_anchor(0, 0.5)
+
+        if settings.is_default(property.name) then
+            cursor.clip_left(32)
+            mnav.declare_sensor_id()
+        else
+            cursor.v_split(32)
+            cursor.pop()
+            icon_button(24, "arrow-clockwise")
+            tooltip("bottom", "Reset", 16, "left")
+            if mnav.get_clicked() then
                 settings.reset_setting(property.name)
                 refresh_visuals(property.name)
                 if property.onchange then
                     property.onchange(state.value)
                 end
                 run_search() -- rerun in case dependencies have changed
-                mnav.soft_release()
             end
-        else
-            state._reset_timer = -1
+            cursor.pop()
         end
 
-        cursor.auto_reshape = "no"
-        if is_resetting then
-            local w = cursor.width
-            cursor.width = w * ease.out_quad(state._reset_timer)
-            draw_by_cursor.rectangle(resetting_bar_color)
-            cursor.width = w
+        if disable then
+            suppress.push_disable()
         end
 
-        cursor.change_anchor(0, 0.5)
-
-        cursor.push()
-        cursor.auto_reshape = "width"
         draw_by_cursor.label(display_text, 24, "left", false)
-        mnav.make_sensor(reset_sid)
-        cursor.pop()
 
         if mnav.is_hovering(sid) or mnav.get_dragging(slider_sid) then
             draw_by_cursor.top_line(theme.accent_color, 2, "center", -2)
@@ -273,29 +240,19 @@ local function draw_slider(state, property, marked_search_text)
         else
             draw_by_cursor.label(tostring(display_value), 20, "right", false)
         end
-
-        -- draw the is resetting text
-        if is_resetting then
-            cursor.peek()
-            local r = draw.allocate_reservation(2)
-            cursor.change_anchor(0.5)
-            cursor.auto_reshape = "both"
-            draw_by_cursor.label("Resetting...", 16, "center", false)
-            cursor.outset(2)
-            draw.next_takes_reservation(r)
-            draw_by_cursor.rectangle(bg_color)
-            draw.next_takes_reservation(r)
-            draw_by_cursor.rectangle(theme.red, "line", 2)
-        end
     end
     cursor.peek()
     cursor.h_stretch(100)
     mnav.make_sensor(sid)
     cursor.pop()
     cursor.shift_down()
+
+    if disable then
+        suppress.pop_disable()
+    end
 end
 
-local function draw_switch(state, property, marked_search_text)
+local function draw_switch(state, property, marked_search_text, disable)
     local display_text
     if marked_search_text then
         display_text = sub_marked_text(marked_search_text, ansi_text_color, ansi_search_hl_color)
@@ -303,44 +260,37 @@ local function draw_switch(state, property, marked_search_text)
         display_text = property.display_name
     end
 
-    local is_resetting = false
     local sid = mnav.declare_sensor_id()
-    local reset_sid = mnav.declare_sensor_id()
     cursor.height = 32
     cursor.push()
     do
-        if mnav.get_holding(reset_sid) == mb.left then
-            state._reset_timer = state._reset_timer + love.timer.getDelta() * 2
-            is_resetting = state._reset_timer < 1 and state._reset_timer > 0
-            if state._reset_timer > 1 then
-                state._reset_timer = 1
+        cursor.auto_reshape = "no"
+        cursor.change_anchor(0, 0.5)
+
+        if settings.is_default(property.name) then
+            cursor.clip_left(32)
+            mnav.declare_sensor_id()
+        else
+            cursor.v_split(32)
+            cursor.pop()
+            icon_button(24, "arrow-clockwise")
+            tooltip("bottom", "Reset", 16, "left")
+            if mnav.get_clicked() then
                 settings.reset_setting(property.name)
                 refresh_visuals(property.name)
                 if property.onchange then
                     property.onchange(state.position)
                 end
                 run_search() -- rerun in case dependencies have changed
-                mnav.soft_release()
             end
-        else
-            state._reset_timer = -1
+            cursor.pop()
         end
 
-        cursor.auto_reshape = "no"
-        if is_resetting then
-            local w = cursor.width
-            cursor.width = w * ease.out_quad(state._reset_timer)
-            draw_by_cursor.rectangle(resetting_bar_color)
-            cursor.width = w
+        if disable then
+            suppress.push_disable()
         end
 
-        cursor.change_anchor(0, 0.5)
-
-        cursor.push()
-        cursor.auto_reshape = "width"
         draw_by_cursor.label(display_text, 24, "left", false)
-        mnav.make_sensor(reset_sid)
-        cursor.pop()
 
         if mnav.is_hovering(sid) then
             draw_by_cursor.top_line(theme.accent_color, 2, "center", -2)
@@ -363,26 +313,16 @@ local function draw_switch(state, property, marked_search_text)
             end
             run_search() -- rerun in case dependencies have changed
         end
-
-        -- draw the is resetting text
-        if is_resetting then
-            cursor.peek()
-            local r = draw.allocate_reservation(2)
-            cursor.change_anchor(0.5)
-            cursor.auto_reshape = "both"
-            draw_by_cursor.label("Resetting...", 16, "center", false)
-            cursor.outset(2)
-            draw.next_takes_reservation(r)
-            draw_by_cursor.rectangle(bg_color)
-            draw.next_takes_reservation(r)
-            draw_by_cursor.rectangle(theme.red, "line", 2)
-        end
     end
     cursor.peek()
     cursor.h_stretch(100)
     mnav.make_sensor(sid)
     cursor.pop()
     cursor.shift_down()
+
+    if disable then
+        suppress.pop_disable()
+    end
 end
 
 local input_intercepter = {}
@@ -490,38 +430,39 @@ local function translate_binding(method_name, binding)
     end
 end
 
+-- cringe, but table serialization isn't reliable
+local function are_inputs_equal(a, b)
+    for method_name, bindings in pairs(a) do
+        if not b[method_name] then
+            return false
+        end
+        if #bindings ~= #b[method_name] then
+            return false
+        end
+        for i = 1, #bindings do
+            if not contains(b[method_name], bindings[i]) then
+                return false
+            end
+        end
+    end
+    return true
+end
+
 local function draw_input_editor(state, property, marked_search_text)
-    local sid, remove_input_sid, add_input_sid, reset_sid, is_resetting, r, w, display_text
+    local sid, remove_input_sid, add_input_sid, display_text, methods
     sid = mnav.declare_sensor_id()
-    reset_sid = mnav.declare_sensor_id()
     cursor.y = cursor.y + 8
     cursor.height = 32
     cursor.start_area()
     do
-        if mnav.get_holding(reset_sid) == mb.left then
-            state._reset_timer = state._reset_timer + love.timer.getDelta() * 2
-            is_resetting = state._reset_timer < 1 and state._reset_timer > 0
-            if state._reset_timer > 1 then
-                state._reset_timer = 1
-                settings.reset_setting(property.name)
-                find_duplicate_bindings()
-                mnav.soft_release()
-            end
-        else
-            state._reset_timer = -1
-        end
-
-        if is_resetting then
-            r = draw.allocate_reservation(1)
-        end
-
-        local methods = settings.get(property.name)
+        methods = settings.get(property.name)
 
         cursor.push()
+        cursor.clip_left(32)
         cursor.auto_reshape = "both"
         cursor.change_anchor(1, 0.5)
         icon_button(24, "plus-square")
-        tooltip("bottom", "Add input", 16, "center", nil, nil, add_input_sid)
+        tooltip("bottom", "Add input", 16, "left", nil, nil, add_input_sid)
         if mnav.get_clicked() then
             remapping = property.name
             layer.push(input_intercepter)
@@ -601,9 +542,34 @@ local function draw_input_editor(state, property, marked_search_text)
             ::continue::
         end
 
+        -- pad with 1 sensor id so a change in number of sensors caused by deleting inputs doesn't cause graphical errors (see above)
+        -- this doesn't matter for resetting since that is always done at the end (see below)
+        mnav.declare_sensor_id()
+
         cursor.pop()
-        cursor.auto_reshape = "width"
+
+        cursor.auto_reshape = "no"
         cursor.change_anchor(0, 0.5)
+
+        if are_inputs_equal(property.default, methods) then
+            cursor.place()
+            cursor.clip_left(32)
+            mnav.declare_sensor_id()
+        else
+            cursor.v_split(32)
+            cursor.pop()
+            icon_button(24, "arrow-clockwise")
+            tooltip("bottom", "Reset", 16, "left")
+            if mnav.get_clicked() then
+                settings.reset_setting(property.name)
+                find_duplicate_bindings()
+                -- prevents the no mappings warning from showing up for 1 frame
+                binding_count = 1
+            end
+            cursor.pop()
+        end
+
+        cursor.auto_reshape = "width"
         if binding_count == 0 then
             if marked_search_text then
                 display_text = ansi_yellow
@@ -615,7 +581,8 @@ local function draw_input_editor(state, property, marked_search_text)
             end
 
             draw_by_cursor.label(display_text, 24, "left", false)
-            tooltip("bottom", "No mappings!\nThis input is unable to be triggered.", 16, "center", 180, nil, reset_sid)
+            mnav.make_sensor()
+            tooltip("bottom", "No mappings!\nThis input is unable to be triggered.", 16, "center", 180)
         else
             if marked_search_text then
                 display_text = sub_marked_text(marked_search_text, ansi_text_color, ansi_search_hl_color)
@@ -623,39 +590,18 @@ local function draw_input_editor(state, property, marked_search_text)
                 display_text = property.display_name
             end
             draw_by_cursor.label(display_text, 24, "left", false)
+            mnav.declare_sensor_id()
         end
-        mnav.make_sensor(reset_sid)
     end
     cursor.finish_area()
     cursor.v_stretch(8)
     cursor.push()
 
+    cursor.place()
+    cursor.clip_left(32)
     if mnav.is_hovering(sid) then
         draw_by_cursor.top_line(theme.accent_color, 2, "center", -2)
         draw_by_cursor.bottom_line(theme.accent_color, 2, "center", -2)
-    else
-        cursor.place()
-    end
-
-    -- draw the is resetting text and background
-    if is_resetting then
-        cursor.auto_reshape = "no"
-        w = cursor.width
-        cursor.width = w * ease.out_quad(state._reset_timer)
-        draw.next_takes_reservation(r)
-        draw_by_cursor.rectangle(resetting_bar_color)
-        cursor.width = w
-
-        r = draw.allocate_reservation(2)
-        cursor.change_anchor(0.5)
-        cursor.auto_reshape = "both"
-        draw_by_cursor.label("Resetting...", 16, "center", false)
-        cursor.outset(2)
-        draw.next_takes_reservation(r)
-        draw_by_cursor.rectangle(bg_color)
-        draw.next_takes_reservation(r)
-        draw_by_cursor.rectangle(theme.red, "line", 2)
-        cursor.peek()
     end
 
     cursor.h_stretch(100)
@@ -663,9 +609,6 @@ local function draw_input_editor(state, property, marked_search_text)
     cursor.pop()
     cursor.shift_down()
     cursor.change_anchor(0, 0) -- resets for next entry
-
-    -- pad with 1 sensor id so input editors don't interfere with each other
-    mnav.declare_sensor_id()
 end
 
 ---@param property table
@@ -681,25 +624,22 @@ local function draw_setting(property, marked_search_text)
         disable = not are_dependencies_satisfied(property)
     end
 
-    if disable then
-        suppress.push_disable()
-    end
-
     local state = id[property.name]
 
     if type(property.default) == "boolean" then
-        draw_toggle(state, property, marked_search_text)
+        draw_toggle(state, property, marked_search_text, disable)
     elseif property.options then
-        draw_switch(state, property, marked_search_text)
+        draw_switch(state, property, marked_search_text, disable)
     elseif type(property.default) == "number" then
         if not (property.min and property.max) then
             return
         elseif property.positions then
-            draw_slider(state, property, marked_search_text)
+            draw_slider(state, property, marked_search_text, disable)
         else
             return
         end
     elseif property.category == "Input" then
+        -- inputs will probably never have dependencies so they don't support disable
         draw_input_editor(state, property, marked_search_text)
     else
         local display_text
@@ -711,10 +651,6 @@ local function draw_setting(property, marked_search_text)
         end
         draw_by_cursor.label(display_text, 24, "left", false)
         cursor.shift_down()
-    end
-
-    if disable then
-        suppress.pop_disable()
     end
 end
 

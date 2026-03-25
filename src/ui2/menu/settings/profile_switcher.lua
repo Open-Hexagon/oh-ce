@@ -112,7 +112,7 @@ local function draw_setting_profile_entry(name)
 
         mnav.make_sensor(delete_sid)
         icon_button(24, "x-square", delete_sid)
-        tooltip("bottom", "Delete", 16, "center")
+        tooltip("bottom", "Delete", 16, "left")
         if mnav.get_clicked(delete_sid) then
             success, msg = settings.delete_profile(name)
             if not success then
@@ -123,7 +123,7 @@ local function draw_setting_profile_entry(name)
 
         mnav.make_sensor(reset_sid)
         icon_button(24, "arrow-clockwise", reset_sid)
-        tooltip("bottom", "Reset to defaults", 16, "center")
+        tooltip("bottom", "Reset to defaults", 16, "left")
         if mnav.get_clicked(reset_sid) then
             success, msg = settings.reset_profile(name)
             if not success then
@@ -134,7 +134,7 @@ local function draw_setting_profile_entry(name)
 
         mnav.make_sensor(copy_sid)
         icon_button(24, "copy", copy_sid)
-        tooltip("bottom", "Duplicate", 16, "center")
+        tooltip("bottom", "Duplicate", 16, "left")
         if mnav.get_clicked(copy_sid) then
             local n = 2
             local disambiguator = " copy"
@@ -149,7 +149,7 @@ local function draw_setting_profile_entry(name)
 
         mnav.make_sensor(rename_sid)
         icon_button(24, "pencil", rename_sid)
-        tooltip("bottom", "Rename", 16, "center")
+        tooltip("bottom", "Rename", 16, "left")
     end
     cursor.peek()
     cursor.h_stretch(100)
@@ -249,11 +249,11 @@ function menu.main()
     cursor.change_anchor(0.5)
     local create_profile_sid = mnav.make_sensor()
     icon_button(24, "plus-square", create_profile_sid)
-    tooltip("bottom", "New settings profile", 16, "center")
+    tooltip("bottom", "New settings profile", 16, "left")
     cursor.shift_left()
     local sort_sid = mnav.make_sensor()
     icon_button(24, sort_direction and "caret-up-fill" or "caret-down-fill", sort_sid)
-    tooltip("bottom", "Sort", 16, "center")
+    tooltip("bottom", "Sort", 16, "left")
     if mnav.get_clicked(sort_sid) then
         sort_direction = not sort_direction
         settings.sort_profile_display_list(sort_direction)

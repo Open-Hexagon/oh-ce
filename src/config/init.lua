@@ -193,6 +193,14 @@ function settings.set_dirty_flag()
     cs_dirty = true
 end
 
+function settings.is_default(name)
+    local property = properties[name]
+    if property.default_serialized then
+        return false -- we can't know (serializing isn't reliable)
+    end
+    return current_settings[name] == property.default
+end
+
 ---Gets a setting (returns the default for settings that cannot be changed in official mode if official mode is on).
 ---Returns nil if setting doesn't exist.
 ---@param name string internal setting name
