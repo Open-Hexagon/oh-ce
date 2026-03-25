@@ -279,7 +279,7 @@ function menu.main()
 
     cursor.push_translation(slide_in_out(), 0) -- (1)
 
-    cursor.v_split(math.min(menu_width, screen_width)) -- (2)
+    local right_pane_width = cursor.v_split(math.min(menu_width, screen_width)) -- (2)
     cursor.pop() -- (2.1)
 
     if profile_switcher_menu.fully_extended then
@@ -297,14 +297,14 @@ function menu.main()
     cursor.auto_reshape = "height"
 
     icon_button(category_icon_size, "arrow-left-circle-fill")
-    tooltip("right", "Back", 24, "left")
+    tooltip("right", "Back", 16, "left")
     cursor.shift_down()
     if mnav.get_clicked() then
         close()
     end
 
     icon_button(category_icon_size, "person-circle")
-    tooltip("right", "Profiles", 24, "left")
+    tooltip("right", "Profiles", 16, "left")
     if mnav.get_clicked() then
         layer.push(profile_switcher_menu)
     end
@@ -322,7 +322,7 @@ function menu.main()
             jump_to_category = i
             last_viewed_category = i
         end
-        tooltip("right", category_tooltip_text[category.name], 24, "left")
+        tooltip("right", category_tooltip_text[category.name], 16, "left")
         cursor.shift_down()
     end
     scroll.finish(3, 0, 0, 0, 0)
@@ -373,7 +373,7 @@ function menu.main()
 
             cursor.auto_area_expansion = "cursor"
             while j <= search_results_index and search_results[j][1] == current_category_index do
-                draw_setting(search_results[j][3], search_results[j][4])
+                draw_setting(search_results[j][3], right_pane_width, search_results[j][4])
                 j = j + 1
             end
 
@@ -406,7 +406,7 @@ function menu.main()
 
             cursor.auto_area_expansion = "cursor"
             for j = 1, #category do
-                draw_setting(category[j])
+                draw_setting(category[j], right_pane_width)
             end
 
             cursor.auto_area_expansion = "no" -- don't let blank background interfere with scroll content area

@@ -30,6 +30,8 @@ local ansi_accent_color = ansi.to_sequence(theme.accent_color)
 local ansi_yellow = ansi.to_sequence(theme.yellow)
 local icnstr_warning = text.get_icon_string("exclamation-triangle-fill")
 
+local desc_tooltip_wrap_limit = 200
+
 ---@param mt string
 ---@param tc string
 ---@param hc string
@@ -38,7 +40,7 @@ local function sub_marked_text(mt, tc, hc)
     return mt:gsub("%%tc%%", tc):gsub("%%hc%%", hc)
 end
 
-local function draw_toggle(state, property, marked_search_text, disable)
+local function draw_toggle(state, property, marked_search_text, disable, desc_tooltip_space)
     local display_text
     if marked_search_text then
         display_text =
@@ -84,7 +86,12 @@ local function draw_toggle(state, property, marked_search_text, disable)
         end
 
         if property.tooltip then
-            tooltip("right", property.tooltip, 20, "left", nil, nil, sid)
+            if desc_tooltip_space < desc_tooltip_wrap_limit then
+                local x, _ = cursor.get_screen_dimensions()
+                tooltip("bottom", property.tooltip, 16, "left", x, nil, sid)
+            else
+                tooltip("right", property.tooltip, 16, "left", desc_tooltip_space, nil, sid)
+            end
         end
 
         if mnav.get_clicked(sid) == mb.left or trigger_reset then
@@ -113,7 +120,7 @@ end
 
 local HOLD_ACTIVATE_TIME = 0.2
 local HOLD_REPEAT_PERIOD = 0.008
-local function draw_slider(state, property, marked_search_text, disable)
+local function draw_slider(state, property, marked_search_text, disable, desc_tooltip_space)
     local display_text
     if marked_search_text then
         display_text = sub_marked_text(marked_search_text, ansi_text_color, ansi_search_hl_color)
@@ -162,7 +169,12 @@ local function draw_slider(state, property, marked_search_text, disable)
         end
 
         if property.tooltip then
-            tooltip("right", property.tooltip, 20, "left", nil, mnav.get_dragging(slider_sid), sid)
+            if desc_tooltip_space < desc_tooltip_wrap_limit then
+                local x, _ = cursor.get_screen_dimensions()
+                tooltip("bottom", property.tooltip, 16, "left", x, mnav.get_dragging(slider_sid), sid)
+            else
+                tooltip("right", property.tooltip, 16, "left", desc_tooltip_space, mnav.get_dragging(slider_sid), sid)
+            end
         end
 
         cursor.change_anchor(1, 0.5)
@@ -252,7 +264,7 @@ local function draw_slider(state, property, marked_search_text, disable)
     end
 end
 
-local function draw_switch(state, property, marked_search_text, disable)
+local function draw_switch(state, property, marked_search_text, disable, desc_tooltip_space)
     local display_text
     if marked_search_text then
         display_text = sub_marked_text(marked_search_text, ansi_text_color, ansi_search_hl_color)
@@ -298,7 +310,12 @@ local function draw_switch(state, property, marked_search_text, disable)
         end
 
         if property.tooltip then
-            tooltip("right", property.tooltip, 20, "left", nil, nil, sid)
+            if desc_tooltip_space < desc_tooltip_wrap_limit then
+                local x, _ = cursor.get_screen_dimensions()
+                tooltip("bottom", property.tooltip, 16, "left", x, nil, sid)
+            else
+                tooltip("right", property.tooltip, 16, "left", desc_tooltip_space, nil, sid)
+            end
         end
 
         cursor.change_anchor(1, 0.5)
@@ -613,7 +630,7 @@ end
 
 ---@param property table
 ---@param marked_search_text string?
-local function draw_setting(property, marked_search_text)
+local function draw_setting(property, desc_tooltip_space, marked_search_text)
     -- assert(cursor.auto_area_expansion == "cursor")
     -- assert(cursor.anchor_x == 0)
     -- assert(cursor.anchor_y == 0)
@@ -627,14 +644,14 @@ local function draw_setting(property, marked_search_text)
     local state = id[property.name]
 
     if type(property.default) == "boolean" then
-        draw_toggle(state, property, marked_search_text, disable)
+        draw_toggle(state, property, marked_search_text, disable, desc_tooltip_space)
     elseif property.options then
-        draw_switch(state, property, marked_search_text, disable)
+        draw_switch(state, property, marked_search_text, disable, desc_tooltip_space)
     elseif type(property.default) == "number" then
         if not (property.min and property.max) then
             return
         elseif property.positions then
-            draw_slider(state, property, marked_search_text, disable)
+            draw_slider(state, property, marked_search_text, disable, desc_tooltip_space)
         else
             return
         end
