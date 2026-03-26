@@ -57,14 +57,18 @@ local profile_dropdown_height = 26
 local profile_dropdown = {}
 local dropdown_scroll = {}
 local dropdown_menu_is_open = false
+local starting_profile
 
 function profile_dropdown.on_push()
+    starting_profile = settings.get_current_profile()
     dropdown_menu_is_open = true
     settings.sort_profile_display_list()
 end
 
 function profile_dropdown.on_pop()
-    settings.apply_settings()
+    if starting_profile ~= settings.get_current_profile() then
+        settings.apply_settings()
+    end
     dropdown_menu_is_open = false
 end
 

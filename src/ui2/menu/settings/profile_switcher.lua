@@ -25,6 +25,8 @@ local menu = {
     fully_extended = false,
 }
 
+local starting_profile
+
 local function close()
     ui.layer.retire()
 end
@@ -34,13 +36,16 @@ function menu.on_push()
     slide_in_out:call(function()
         menu.fully_extended = true
     end)
+    starting_profile = settings.get_current_profile()
 end
 
 function menu.on_pop(release)
     slide_in_out:keyframe(0.1, -menu_width, ease.out_sine)
     slide_in_out:call(release)
-    settings.apply_settings()
     menu.fully_extended = false
+    if starting_profile ~= settings.get_current_profile() then
+        settings.apply_settings()
+    end
 end
 
 local rename_state = {}
