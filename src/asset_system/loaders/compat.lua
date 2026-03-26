@@ -17,7 +17,7 @@ local loaders = {}
 function loaders.sound(name)
     name = sound_mapping[name] or name
     local path = audio_path .. name
-    if love.filesystem.getInfo(path) then
+    if love.filesystem.exists(path) then
         return index.local_request("sound_data", path)
     end
 end

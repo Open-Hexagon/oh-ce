@@ -219,7 +219,7 @@ function compat_loaders.info(pack_folder_name, version)
     local folder = "packs" .. version .. "/" .. pack_folder_name .. "/"
     local info = {}
     index.watch_file(folder .. "pack.json")
-    if not love.filesystem.getInfo(folder .. "pack.json") then
+    if not love.filesystem.exists(folder .. "pack.json") then
         log:error("Invalid pack at " .. folder .. " missing pack.json")
     else
         info = index.local_request("pack.compat.json_file", folder .. "pack.json")
@@ -299,11 +299,11 @@ function compat_loaders.music(path_or_content, is_content, filename, version, pa
         music.file_name = music.file_name or fallback_path
         local path = pack_info.path .. "Music/" .. music.file_name
         index.watch_file(path)
-        if music.file_name:sub(-4) ~= ".ogg" or not love.filesystem.getInfo(path) then
+        if music.file_name:sub(-4) ~= ".ogg" or not love.filesystem.exists(path) then
             music.file_name = fallback_path
             path = pack_info.path .. "Music/" .. music.file_name
         end
-        if love.filesystem.getInfo(path) then
+        if love.filesystem.exists(path) then
             -- don't load music here yet, load it when required and unload it again to save memory usage (otherwise the game may use 5+ gb just for music assets after clicking through the menu)
             music.file_path = path
         end
@@ -372,7 +372,7 @@ function compat_loaders.preview_data(version, name)
         else
             local lua_path = info.path .. "/" .. level.lua_file
             index.watch_file(lua_path)
-            if love.filesystem.getInfo(lua_path) then
+            if love.filesystem.exists(lua_path) then
                 local code = love.filesystem.read(lua_path)
                 for match in code:gmatch("function%s*onInit.-l_setSides%((.-)%).-end") do
                     side_count = tonumber(match) or side_count

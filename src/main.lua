@@ -225,12 +225,12 @@ function love.run()
             local score = scores[i]
             local hash = score.replay_hash
             if hash then
-                if love.filesystem.getInfo("server/working_replays/" .. hash) then
+                if love.filesystem.exists("server/working_replays/" .. hash) then
                     log:info("skipping, replay already in working replays folder.")
                     worked = worked + 1
                 else
                     local path = replay_path .. hash:sub(1, 2) .. "/" .. hash
-                    if love.filesystem.getInfo(path) then
+                    if love.filesystem.exists(path) then
                         local replay = Replay:new(path)
                         love.thread
                             .getChannel("game_commands")
