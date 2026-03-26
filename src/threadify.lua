@@ -21,9 +21,10 @@ if is_thread then
     -- Threadified module thread.
     -- There can only be one of these per threadified module.
 
-    local log = logging.get_logger(select(4, ...))
+    local thread_identity = select(4, ...)
+    local log = logging.get_logger(thread_identity)
 
-    log:debug("begin new threadify thread")
+    log:debug("begin threadify thread for '", modname, "'")
 
     local send_responses = not select(3, ...) -- this was once no_responses passed in by threadify.require
     ---@type ThreadAPI
