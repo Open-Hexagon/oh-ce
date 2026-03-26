@@ -16,8 +16,7 @@ local typing = ui.control.typing
 local profile_display_list = settings.profile_display_list
 local set_error_message = require("ui2.menu.debug").set_error_message
 
-local bg_color, shadow40_color, menu_width, category_bar_width, category_icon_size, fade_down_shader =
-    ...
+local bg_color, shadow40_color, menu_width, category_bar_width, category_icon_size, fade_down_shader = ...
 
 local slide_in_out = signal.new_queue(-menu_width)
 
@@ -40,6 +39,7 @@ end
 function menu.on_pop(release)
     slide_in_out:keyframe(0.1, -menu_width, ease.out_sine)
     slide_in_out:call(release)
+    settings.apply_settings()
     menu.fully_extended = false
 end
 
@@ -61,7 +61,7 @@ local function draw_setting_profile_entry(name)
     cursor.pop()
     -- position isn't used by text entry so we can be sneaky and use it here
     rename_state.position = is_current_profile and 2 or 0
-    checkbox(rename_state, 24, 0) -- use 0 as custom sensor to disable mouse interaction entirely
+    checkbox(rename_state, 20, 0) -- use 0 as custom sensor to disable mouse interaction entirely
 
     cursor.pop()
     -- currently_renaming has to be set before running make_text_entry

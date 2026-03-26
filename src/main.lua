@@ -352,10 +352,8 @@ function love.run()
                 log:not_implemented()
                 -- ui.open_screen("game")
             else
-                -- log:not_implemented()
                 ohui.layer.pop()
                 ohui.layer.push(require("ui2.menu.level_select"))
-                -- ui.open_screen("levelselect")
             end
         end)
 

@@ -64,6 +64,7 @@ function profile_dropdown.on_push()
 end
 
 function profile_dropdown.on_pop()
+    settings.apply_settings()
     dropdown_menu_is_open = false
 end
 
@@ -377,7 +378,6 @@ function menu.main()
                 j = j + 1
             end
 
-            cursor.auto_area_expansion = "no" -- don't let blank background interfere with scroll content area
             local res_id, pid = blank_background.finish(6, 0, 8, 8)
             cursor.auto_area_expansion = "placement"
 
@@ -409,7 +409,6 @@ function menu.main()
                 draw_setting(category[j], right_pane_width)
             end
 
-            cursor.auto_area_expansion = "no" -- don't let blank background interfere with scroll content area
             local res_id, pid = blank_background.finish(6, 0, 8, 8)
             cursor.auto_area_expansion = "placement"
 

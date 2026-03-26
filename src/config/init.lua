@@ -567,6 +567,16 @@ function settings.get_current_profile()
     return global_settings.settings_profile
 end
 
+---Runs all onchange functions to ensure settings are applied properly
+function settings.apply_settings()
+    for name, prop_def in pairs(properties) do
+        if prop_def.onchange then
+            prop_def.onchange(current_settings[name])
+        end
+    end
+    settings_logger:info("applied settings")
+end
+
 --#endregion
 
 --#endregion SETTINGS PROFILES
@@ -646,11 +656,7 @@ do
         end
     end
 
-    for name, prop_def in pairs(properties) do
-        if prop_def.onchange then
-            prop_def.onchange(current_settings[name])
-        end
-    end
+    settings.apply_settings()
 
     ---TODO: this might become obsolete in the future.
     profile.open_or_new(gp_name)
