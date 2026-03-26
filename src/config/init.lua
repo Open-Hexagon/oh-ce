@@ -1,10 +1,13 @@
 local modname = ...
 local json = require("extlibs.json.json-beautify")
-local profile = require("game_handler.profile")
 local logging = require("logging")
 local config_logger = logging.get_logger(modname)
 local buffer = require("string.buffer")
 table.clear = require("table.clear")
+
+local profile = require("game_handler.profile")
+local threadify = require("threadify")
+local pack_downloader = threadify.require("pack_downloader")
 
 ---Saves a table into a json file. Might throw an error.
 ---@param path string
@@ -571,9 +574,17 @@ end
 function settings.apply_settings()
     for name, prop_def in pairs(properties) do
         if prop_def.onchange then
-            prop_def.onchange(current_settings[name])
+            prop_def.onchange(settings.get(name))
         end
     end
+
+    -- ? I'm not sure if these settings will ever be editable in-game
+    pack_downloader.set_server(
+        settings.get("server_url"),
+        settings.get("server_http_api_port"),
+        settings.get("server_https_api_port")
+    )
+
     settings_logger:info("applied settings")
 end
 

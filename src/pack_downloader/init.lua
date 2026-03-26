@@ -1,13 +1,15 @@
-local log = require("log")("ui.overlay.packs.download_thread")
+-- This module should be required using threadify
+
+require("love.timer")
+require("love.system")
+local log = require("logging").get_logger(...)
 local json = require("extlibs.json.json")
 local assets = require("asset_system")
 local async = require("async")
 local url = require("socket.url")
-require("love.timer")
 
 -- don't import https when running in the browser
 -- TODO: find an alternative?
-require("love.system")
 local https
 if love.system.getOS() ~= "Web" then
     https = require("https")
@@ -29,14 +31,23 @@ end
 local function api(suffix)
     local code, json_data = https.request(server_https_url .. url.escape(suffix))
     if code ~= 200 then
-        log("'" .. server_https_url .. url.escape(suffix) .. "' api request failed")
+        log:warning("'", server_https_url, url.escape(suffix), "' api request failed with response: ", code)
         return
     end
-    if not json_data or (json_data:sub(1, 1) ~= "{" and json_data:sub(1, 1) ~= "[") then
-        -- something went wrong
+    -- catch whatever errors could've occurred
+    local success, result = pcall(json.decode, json_data)
+    if not success then
+        log:warning(
+            "'",
+            server_https_url,
+            url.escape(suffix),
+            "' api request received corrupt json data: '",
+            result,
+            "'"
+        )
         return
     end
-    return json.decode(json_data)
+    return result
 end
 
 function download.set_server(serv_url, http_port, https_port)
@@ -94,7 +105,7 @@ end
 ---@param pack_name string
 ---@return string?
 function download.get(version, pack_name)
-    local thread = love.thread.newThread("ui/overlay/packs/download.lua")
+    local thread = love.thread.newThread("pack_downloader/download.lua")
     thread:start(version, pack_name, tmp_folder, server_http_url, pack_map[version][pack_name].file_size)
     while thread:isRunning() do
         coroutine.yield()
@@ -104,7 +115,7 @@ function download.get(version, pack_name)
     if err then
         return err
     end
-    log("Done")
+    log:info("Done")
 end
 
 return download
