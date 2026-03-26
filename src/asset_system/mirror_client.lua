@@ -15,7 +15,7 @@ local asset_callbacks = {}
 ---call the callbacks for an asset
 ---@param key MirrorKey|table
 ---@param value unknown
-local function call_calbacks(key, value)
+local function call_callbacks(key, value)
     local call_count_map = asset_callbacks[key]
     if call_count_map then
         local calls = {}
@@ -35,6 +35,7 @@ end
 
 ---updates the contents of the mirror using the asset notifications
 ---if the all flag is false/nil only 1 notification gets processed
+---no
 ---@param all boolean?
 ---@param timeout number?
 function client.update(all, timeout)
@@ -46,12 +47,12 @@ function client.update(all, timeout)
             -- if currently mirrored value is a table and new value is one, assume it's a diff
             if type(client.mirror[key]) == "table" and type(data) == "table" then
                 ltdiff.patch(client.mirror[key], data, function(t)
-                    call_calbacks(t, t)
+                    call_callbacks(t, t)
                 end)
             else
                 client.mirror[key] = data
             end
-            call_calbacks(key, client.mirror[key])
+            call_callbacks(key, client.mirror[key])
         end
     until not all or msg == nil
 end
